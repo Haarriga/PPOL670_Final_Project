@@ -1,4 +1,4 @@
-# PPOL670_Final_Project
+# PPOL670 Final Project
 ## Ming & Huixin
 
 # Data Analysis Project
