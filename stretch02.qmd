@@ -4,11 +4,14 @@ author: "Huixin Cai & Ming Zhou"
 format: html
 editor: source
 ---
-## 1 Set up 
+## 1 Set up
+Our goal is to use individuals' social and economic characteristics (e.g. gender, age, education, race, social assistance, SNAP benefits, etc.) to predict individuals' employment status. The employment status - A_EXPLP is our target variable.
+The data is Annual Social and Economic (ASEC) Supplement. It provides the usual monthly labor force data, but in addition, provides supplemental data on work experience, income, noncash benefits, and migration. Comprehensive work experience information is given on the employment status, occupation, and industry of persons 15 years old and over.
 ```{r}
 library(tidyverse)
 library(lubridate)
-data <- read_csv("Data/Economic Characteristics of DC Census Tracts.csv")
+data <- read_csv("Data/pppub22.csv")
+
 ```
 
 ## 2 Come up with Models 
