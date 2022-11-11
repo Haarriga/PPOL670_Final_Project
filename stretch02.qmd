@@ -76,6 +76,11 @@ knn_workflow <-
 
 knn_fit <- knn_workflow %>%
   fit(data = data_training)
+
+predictions1  <- bind_cols(
+  data_testing,
+  predict(object = knn_fit, new_data = data_testing),
+  predict(object = knn_fit, new_data = data_testing, type = "prob"))
 ```
 **Decision Tree**
 ```{r}
@@ -90,21 +95,18 @@ data_wf <- workflow() %>%
 
 data_fit <- data_wf %>%
   fit(data = data_training)
-
-predictions2  <- bind_cols(
-  data_testing,
-  predict(object = data_fit, new_data = data_testing),
-  predict(object = data_fit, new_data = data_testing, type = "prob"))
 ```
 
 **Linear Regression** 
 ```{r}
+show_engines('multinom_reg')
+library(nnet)
 folds <- vfold_cv(data = data_training, v = 10)
 
 lm_mod <- 
-  linear_reg() %>%
-  set_engine(engine = "lm") %>%
-  set_mode(mode = "regression")
+  multinom_reg() %>%
+  set_engine(engine = "glmnet") %>%
+  set_mode(mode = "classification")
 
 # create a workflow with the recipe and linear regression model you've created
 lm_wf <- workflow() %>%
@@ -114,16 +116,26 @@ lm_wf <- workflow() %>%
 lm_cv <- lm_wf %>%
   fit_resamples(resamples = folds)
 
-# select the best model based on the "rmse" metric
+# select the best model based on the "accuracy" metric
 lm_best <- lm_cv %>%
-  select_best(metric = "mae")
+  select_best(metric = "accuracy")
 
-# use the finalize_workflow() function with your workflow and the best model 
 # to update (or "finalize") your workflow by modifying the line below
 lm_final <- 
   finalize_workflow(lm_wf,
                     parameters = lm_best)
+
+lm_fit <- lm_final %>%
+  fit(data = data_training)
+
+predictions  <- bind_cols(
+  data_testing,
+  predict(object = lm_fit, new_data = data_testing),
+  predict(object = lm_fit, new_data = data_testing, type = "prob"))
+
+select(predictions, A_EXPLF, starts_with(".pred"))
 ```
+
 ## 3 Estimation
 ```{r}
 
