@@ -65,41 +65,18 @@ data_rec <- recipe(A_EXPLF~ ., data = data_training) %>%
 ```
 **KNN**
 ```{r}
-data_select <- data_training %>%
-  select(A_HGA, A_MARITL, PRDTRACE, A_EXPLF)
-
-data_rec <- recipe(formula = A_EXPLF~ . , data = data_select)
-
-folds <- vfold_cv(data = data_select, v = 10)
-
-#KNN_choose best hyperparameters
-knn_mod <- nearest_neighbor(neighbors = tune()) %>%
+knn_mod <- nearest_neighbor(neighbors = 8) %>%
   set_engine(engine = "kknn") %>%
-  set_mode(mode = "regression")
+  set_mode(mode = "classification")
 
 knn_workflow <- 
   workflow() %>%
   add_model(spec = knn_mod) %>%
   add_recipe(recipe = data_rec)
 
-knn_grid <- grid_regular(neighbors(range = c(1, 15)),
-                         levels = 8)
-
-knn_res <- 
-  knn_workflow %>%
-  tune_grid(resamples = folds,
-            grid = knn_grid,
-            control = control_grid(save_pred = TRUE))
-
-knn_res %>%
-  collect_metrics()
-
-knn_res %>%
-  select_best()
-
-
+knn_fit <- knn_workflow %>%
+  fit(data = data_training)
 ```
-
 **Decision Tree**
 ```{r}
 data_mod <-
@@ -113,10 +90,17 @@ data_wf <- workflow() %>%
 
 data_fit <- data_wf %>%
   fit(data = data_training)
+
+predictions2  <- bind_cols(
+  data_testing,
+  predict(object = data_fit, new_data = data_testing),
+  predict(object = data_fit, new_data = data_testing, type = "prob"))
 ```
 
 **Linear Regression** 
 ```{r}
+folds <- vfold_cv(data = data_training, v = 10)
+
 lm_mod <- 
   linear_reg() %>%
   set_engine(engine = "lm") %>%
@@ -124,13 +108,21 @@ lm_mod <-
 
 # create a workflow with the recipe and linear regression model you've created
 lm_wf <- workflow() %>%
-  add_recipe(ames_rec) %>%
-  add_model(lm_mod) 
+  add_recipe(data_rec) %>%
+  add_model(data_mod) 
 
-# fit the model by piping your workflow
 lm_cv <- lm_wf %>%
   fit_resamples(resamples = folds)
 
+# select the best model based on the "rmse" metric
+lm_best <- lm_cv %>%
+  select_best(metric = "mae")
+
+# use the finalize_workflow() function with your workflow and the best model 
+# to update (or "finalize") your workflow by modifying the line below
+lm_final <- 
+  finalize_workflow(lm_wf,
+                    parameters = lm_best)
 ```
 ## 3 Estimation
 ```{r}
