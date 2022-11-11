@@ -1,0 +1,25 @@
+---
+title: "Stretch02"
+author: "Huixin Cai & Ming Zhou"
+format: html
+editor: source
+---
+## 1 Set up 
+```{r}
+library(tidyverse)
+library(lubridate)
+data <- read_csv("Data/Economic Characteristics of DC Census Tracts.csv")
+```
+
+## 2 Come up with Models 
+```{r}
+
+```
+
+## 3 Estimation
+```{r}
+
+
+```
+
+## 4 Interpretion 
