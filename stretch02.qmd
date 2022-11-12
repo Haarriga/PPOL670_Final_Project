@@ -22,7 +22,7 @@ data1 <- data %>%
          CHSP_VAL, CSP_VAL, PAW_VAL, RINT_SC2, RINT_VAL1, PTOTVAL, DIS_HP,
          DIS_CS, DIS_CS, DIS_YN, DIV_YN, DSAB_VAL, PEARNVAL, EARNER, LKWEEKS,
          LOSEWKS) 
-data1$A_EXPLF <- as.character(data1$A_EXPLF)
+data1$A_EXPLF <- as.factor(data1$A_EXPLF)
 ```
 **b. Split the data**
 ````{r}
@@ -34,6 +34,8 @@ data_testing <- testing(x = split)
 ```
 **c. Exploratory data analysis**
 ```{r}
+glimpse(data_training)
+
 library(dplyr)
 library(ggplot2)
 data_training %>%
@@ -84,17 +86,43 @@ predictions1  <- bind_cols(
 ```
 **Decision Tree**
 ```{r}
-data_mod <-
+tree_mod <-
   decision_tree() %>%
   set_engine(engine = "rpart") %>%
   set_mode(mode = "classification")
 
-data_wf <- workflow() %>%
+tree_wf <- workflow() %>%
   add_recipe(data_rec) %>%
-  add_model(data_mod)
+  add_model(tree_mod)
 
-data_fit <- data_wf %>%
+tree_fit <- tree_wf %>%
   fit(data = data_training)
+
+# fit to training data
+predictions_tree  <- bind_cols(
+  data_training,
+  predict(object = tree_fit, new_data = data_training),
+  predict(object = tree_fit, new_data = data_training, type = "prob"))
+
+select(predictions_tree, A_EXPLF, starts_with(".pred"))
+
+cm_tree <- conf_mat(data = predictions_tree,
+               truth = A_EXPLF,
+               estimate = .pred_class)
+cm_tree
+
+# fit to testing data
+predictions_tree_test <- bind_cols(
+  data_testing,
+  predict(object = tree_fit, new_data = data_testing),
+  predict(object = tree_fit, new_data = data_testing, type = "prob"))
+
+select(predictions_tree, A_EXPLF, starts_with(".pred"))
+
+cm_tree_test <- conf_mat(data = predictions_tree_test,
+               truth = A_EXPLF,
+               estimate = .pred_class)
+cm_tree_test
 ```
 
 **Linear Regression** 
@@ -103,15 +131,13 @@ show_engines('multinom_reg')
 library(nnet)
 folds <- vfold_cv(data = data_training, v = 10)
 
-lm_mod <- 
-  multinom_reg() %>%
-  set_engine(engine = "glmnet") %>%
-  set_mode(mode = "classification")
+lm_mod <- multinom_reg(penalty = 1) %>%
+  set_engine("glmnet") %>%
+  set_mode("classification")
 
-# create a workflow with the recipe and linear regression model you've created
 lm_wf <- workflow() %>%
   add_recipe(data_rec) %>%
-  add_model(data_mod) 
+  add_model(lm_mod) 
 
 lm_cv <- lm_wf %>%
   fit_resamples(resamples = folds)
@@ -128,12 +154,31 @@ lm_final <-
 lm_fit <- lm_final %>%
   fit(data = data_training)
 
-predictions  <- bind_cols(
+# fit to all training data
+predictions_lm  <- bind_cols(
+  data_training,
+  predict(object = lm_fit, new_data = data_training),
+  predict(object = lm_fit, new_data = data_training, type = "prob"))
+
+select(predictions, A_EXPLF, starts_with(".pred"))
+
+cm_lm <- conf_mat(data = predictions_lm,
+               truth = A_EXPLF,
+               estimate = .pred_class)
+cm_lm
+
+# fit to testing data
+predictions_lm_test  <- bind_cols(
   data_testing,
   predict(object = lm_fit, new_data = data_testing),
   predict(object = lm_fit, new_data = data_testing, type = "prob"))
 
 select(predictions, A_EXPLF, starts_with(".pred"))
+
+cm_lm_test <- conf_mat(data = predictions_lm_test,
+               truth = A_EXPLF,
+               estimate = .pred_class)
+cm_lm_test
 ```
 
 ## 3 Estimation
