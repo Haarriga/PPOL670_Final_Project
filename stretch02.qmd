@@ -3,11 +3,13 @@ title: "Stretch02"
 author: "Huixin Cai & Ming Zhou"
 format: html
 editor: source
+warning: False
+self-contained: true
 ---
 ## 1 Set up
 **a. Data**
-Our goal is to use individuals' social and economic characteristics (e.g. gender, age, education, race, social assistance, SNAP benefits, etc.) to predict individuals' employment status. The employment status - A_EXPLP is our target variable.
-The data is Annual Social and Economic (ASEC) Supplement. It provides the usual monthly labor force data, but in addition, provides supplemental data on work experience, income, noncash benefits, and migration. Comprehensive work experience information is given on the employment status, occupation, and industry of persons 15 years old and over.
+Our goal is to use individuals' social and economic characteristics (e.g. gender, age, education, race, social assistance, SNAP benefits, etc.) to predict individuals' employment status. The employment status - A_EXPLP is our target variable, which is a categorical variable with 3 values (0,1,2). 
+The data is Annual Social and Economic (ASEC) Supplement. It provides the usual monthly labor force data, but in addition, provides supplemental data on work experience, income, non-cash benefits, and migration. Comprehensive work experience information is given on the employment status, occupation, and industry of persons 15 years old and over.
 ```{r}
 library(tidyverse)
 library(lubridate)
@@ -18,8 +20,8 @@ data1 <- data %>%
          SPM_FAMTYPE, SPM_CAPHOUSESUB, SPM_CAPWKCCXPNS, SPM_CHILDCAREXPNS,
          A_HGA, SPM_CHILDSUPPD, SPM_EITC, A_MARITL, HEA, SPM_FEDTAX, SPM_GEOADJ,
          SPM_ENGVAL, PRDTRACE, PHIP_VAL, MCAID, NOW_MCAID, NOW_DEPNONM,
-         NOW_MRKUN, MRKUN, NOW_MRK, MRK, NOW_DIR, OWNDIR, COV, COV_CYR, AGI, EIT_CRED,
-         CHSP_VAL, CSP_VAL, PAW_VAL, RINT_SC2, RINT_VAL1, PTOTVAL, DIS_HP,
+         NOW_MRKUN, MRKUN, NOW_MRK, MRK, NOW_DIR, OWNDIR, COV, COV_CYR, AGI, 
+         EIT_CRED, CHSP_VAL, CSP_VAL, PAW_VAL, RINT_SC2, RINT_VAL1, PTOTVAL, DIS_HP,
          DIS_CS, DIS_CS, DIS_YN, DIV_YN, DSAB_VAL, PEARNVAL, EARNER, LKWEEKS,
          LOSEWKS) 
 data1$A_EXPLF <- as.factor(data1$A_EXPLF)
@@ -34,29 +36,31 @@ data_testing <- testing(x = split)
 ```
 **c. Exploratory data analysis**
 ```{r}
-glimpse(data_training)
-
 library(dplyr)
 library(ggplot2)
+# Take a overview of the data 
+glimpse(data_training)
+# The Distribution of the dependent variable (individuals' employment status)
 data_training %>%
   filter(complete.cases(.)) %>%
   ggplot(aes(x=A_EXPLF)) +
   geom_bar(aes(fill=factor(A_EXPLF))) +
-  scale_fill_manual("",
-                     values = c(
-                       "0" = "red",
-                       "1" = "blue",
-                       "2" = "green")) +
+  scale_fill_discrete(labels=c('not in the labor force', 
+                               'employed',
+                               'unemployed')) +
   labs(y = "The number of individuals",
        x = "The employment status",
-       title = "Half of individuals are not in the labor force, while the unemployment rate is about 3.3%",
-       caption = "Source: census.gov") +
-  theme_void()
+       title = paste0("Half of individuals are not in the labor force,",
+       "while the unemployment rate is about 3.3%"), 
+       fill = "Individuals' unemployment status",
+       caption = "Source: census.gov")
+# The Distribution of the regressors and controlled variables 
+summary(data_training)
 ```
 **d. Explicitly pick an error metric**
 False negative has higher cost (the person is unemployed but the model predicts them to be employed, in that way the budget for unemployment compensation provided by the government would not be enough), while false positive would lead to excessive budget, which does less harm.
 
-## 2 Come up with Models 
+## 2 Come up with Models & 3 Estimation 
 ```{r}
 library(tidymodels)
 #Build a recipe 
@@ -79,10 +83,13 @@ knn_workflow <-
 knn_fit <- knn_workflow %>%
   fit(data = data_training)
 
-predictions1  <- bind_cols(
-  data_testing,
-  predict(object = knn_fit, new_data = data_testing),
-  predict(object = knn_fit, new_data = data_testing, type = "prob"))
+# fit to training data
+predictions_KNN  <- bind_cols(
+  data_training,
+  predict(object = knn_fit, new_data = data_training),
+  predict(object = knn_fit, new_data = data_training, type = "prob"))
+
+select(predictions_KNN, A_EXPLF, starts_with(".pred"))
 ```
 **Decision Tree**
 ```{r}
@@ -131,7 +138,8 @@ show_engines('multinom_reg')
 library(nnet)
 folds <- vfold_cv(data = data_training, v = 10)
 
-lm_mod <- multinom_reg(penalty = 1) %>%
+lm_mod <- 
+  multinom_reg(penalty = 1) %>%
   set_engine("glmnet") %>%
   set_mode("classification")
 
@@ -173,18 +181,12 @@ predictions_lm_test  <- bind_cols(
   predict(object = lm_fit, new_data = data_testing),
   predict(object = lm_fit, new_data = data_testing, type = "prob"))
 
-select(predictions, A_EXPLF, starts_with(".pred"))
+select(predictions_lm_test, A_EXPLF, starts_with(".pred"))
 
 cm_lm_test <- conf_mat(data = predictions_lm_test,
                truth = A_EXPLF,
                estimate = .pred_class)
 cm_lm_test
-```
-
-## 3 Estimation
-```{r}
-
-
 ```
 
 ## 4 Interpretion 
