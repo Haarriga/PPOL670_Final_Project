@@ -11,10 +11,13 @@ self-contained: true
 Our goal is to use individuals' social and economic characteristics (e.g. gender, age, education, race, social assistance, SNAP benefits, etc.) to predict individuals' employment status. The employment status - A_EXPLP is our target variable, which is a categorical variable with 3 values (0 for not in universe,1 for employed, 2 for unemployed). 
 The data is Annual Social and Economic (ASEC) Supplement. It provides the usual monthly labor force data, but in addition, provides supplemental data on work experience, income, non-cash benefits, and migration. Comprehensive work experience information is given on the employment status, occupation, and industry of persons 15 years old and above.
 ```{r}
+# load data
 library(tidyverse)
 library(lubridate)
 library(dplyr)
 data <- read_csv("Data/pppub22.csv")
+
+# manually select predictor variables
 data1 <- data %>%
   select(A_EXPLF,MIG_REG, SPM_NUMKIDS, SPM_ACTC, SPM_BBSUBVAL,
          SPM_FAMTYPE, SPM_CAPHOUSESUB, SPM_CAPWKCCXPNS, SPM_CHILDCAREXPNS,
@@ -23,7 +26,9 @@ data1 <- data %>%
          NOW_MRKUN, MRKUN, NOW_MRK, MRK, NOW_DIR, OWNDIR, COV, COV_CYR, AGI, 
          EIT_CRED, CHSP_VAL, CSP_VAL, PAW_VAL, RINT_SC2, RINT_VAL1, PTOTVAL, DIS_HP,
          DIS_CS, DIS_CS, DIS_YN, DIV_YN, DSAB_VAL, PEARNVAL, EARNER, LKWEEKS,
-         LOSEWKS) 
+         LOSEWKS)
+
+# convert outcome variable to factor
 data1$A_EXPLF <- as.factor(data1$A_EXPLF)
 ```
 **b. Split the data**
