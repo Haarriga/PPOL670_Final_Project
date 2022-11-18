@@ -1,15 +1,15 @@
 ---
-title: "Stretch02"
+title: "Stretch02 (Assignment07)"
 author: "Huixin Cai & Ming Zhou"
 format: html
 editor: source
-warning: False
+warning: false
 self-contained: true
 ---
 ## 1 Set up
 **a. Data**
-Our goal is to use individuals' social and economic characteristics (e.g. gender, age, education, race, social assistance, SNAP benefits, etc.) to predict individuals' employment status. The employment status - A_EXPLP is our target variable, which is a categorical variable with 3 values (0,1,2). 
-The data is Annual Social and Economic (ASEC) Supplement. It provides the usual monthly labor force data, but in addition, provides supplemental data on work experience, income, non-cash benefits, and migration. Comprehensive work experience information is given on the employment status, occupation, and industry of persons 15 years old and over.
+Our goal is to use individuals' social and economic characteristics (e.g. gender, age, education, race, social assistance, SNAP benefits, etc.) to predict individuals' employment status. The employment status - A_EXPLP is our target variable, which is a categorical variable with 3 values (0 for not in universe,1 for employed, 2 for unemployed). 
+The data is Annual Social and Economic (ASEC) Supplement. It provides the usual monthly labor force data, but in addition, provides supplemental data on work experience, income, non-cash benefits, and migration. Comprehensive work experience information is given on the employment status, occupation, and industry of persons 15 years old and above.
 ```{r}
 library(tidyverse)
 library(lubridate)
@@ -190,3 +190,12 @@ cm_lm_test
 ```
 
 ## 4 Interpretion 
+**a**
+None of our models have been able to predict anybody unemployed properly, which is the category that we care the most about. Our plan is to use this model to find those unemployed as the target group of some government compensatory program, so for now our models are not effective.
+
+**b**
+1. We may want to recategorize our core outcome variable into a binary variable, with 0 for "not in labor force" and 1 for "in labor force", or with 0 for "employed" and 1 for "unemployed" and get rid of the observations that are not in universe.
+
+2. Since our data set has so many variables, we can try using PCA or other methods we learned in class to narrow down the number of variables, instead of manually choosing variables.
+
+3. As we are using survey data, and our data set is pretty unbalanced, we need to find a way to properly weigh our variables.
