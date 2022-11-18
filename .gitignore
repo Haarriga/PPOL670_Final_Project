@@ -1,3 +1,5 @@
 *.docx
 *.pdf
 *.csv
+.DS_Store
+.Rhistory
