@@ -10,7 +10,7 @@ self-contained: true
 **a. Data**
 Our goal is to use individuals' social and economic characteristics (e.g. gender, age, education, race, social assistance, SNAP benefits, etc.) to predict individuals' employment status. The employment status - A_EXPLP is our target variable, which is a categorical variable with 3 values (0 for not in universe,1 for employed, 2 for unemployed). 
 The data is Annual Social and Economic (ASEC) Supplement. It provides the usual monthly labor force data, but in addition, provides supplemental data on work experience, income, non-cash benefits, and migration. Comprehensive work experience information is given on the employment status, occupation, and industry of persons 15 years old and above.
-```{r}
+```{r set_up}
 # load data
 library(tidyverse)
 library(lubridate)
@@ -32,7 +32,7 @@ data1 <- data %>%
 data1$A_EXPLF <- as.factor(data1$A_EXPLF)
 ```
 **b. Split the data**
-````{r}
+````{r split_data}
 library(tidymodels)
 set.seed(20221111)
 split <- initial_split(data = data1, prop = 0.8)
@@ -40,7 +40,7 @@ data_training <- training(x = split)
 data_testing <- testing(x = split)
 ```
 **c. Exploratory data analysis**
-```{r}
+```{r EDA}
 library(dplyr)
 library(ggplot2)
 # Take a overview of the data 
@@ -66,7 +66,7 @@ summary(data_training)
 False negative has higher cost (the person is unemployed but the model predicts them to be employed, in that way the budget for unemployment compensation provided by the government would not be enough), while false positive would lead to excessive budget, which does less harm.
 
 ## 2 Come up with Models & 3 Estimation 
-```{r}
+```{r recipe}
 library(tidymodels)
 #Build a recipe 
 data_rec <- recipe(A_EXPLF~ ., data = data_training) %>%
@@ -75,7 +75,7 @@ data_rec <- recipe(A_EXPLF~ ., data = data_training) %>%
   step_corr(all_predictors())
 ```
 **KNN**
-```{r}
+```{r KNN}
 knn_mod <- nearest_neighbor(neighbors = 8) %>%
   set_engine(engine = "kknn") %>%
   set_mode(mode = "classification")
@@ -97,7 +97,7 @@ predictions_KNN  <- bind_cols(
 select(predictions_KNN, A_EXPLF, starts_with(".pred"))
 ```
 **Decision Tree**
-```{r}
+```{r decision_tree}
 tree_mod <-
   decision_tree() %>%
   set_engine(engine = "rpart") %>%
@@ -138,7 +138,7 @@ cm_tree_test
 ```
 
 **Linear Regression** 
-```{r}
+```{r lm}
 show_engines('multinom_reg')
 library(nnet)
 folds <- vfold_cv(data = data_training, v = 10)
