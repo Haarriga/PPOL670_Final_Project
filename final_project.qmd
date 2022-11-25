@@ -18,5 +18,63 @@ library(tidymodels)
 library(tidyclust)
 library(factoextra)
 library(broom)
-data <- read_csv("Data/pppub22.csv")
+library(ggplot2)
+data <- read_csv("Data/pppub22.csv") %>%
+  select(A_EXPLF,MIG_REG, SPM_NUMKIDS, SPM_ACTC, SPM_BBSUBVAL,
+         SPM_FAMTYPE, SPM_CAPHOUSESUB, SPM_CAPWKCCXPNS, SPM_CHILDCAREXPNS,
+         A_HGA, SPM_CHILDSUPPD, SPM_EITC, A_MARITL, HEA, SPM_FEDTAX, SPM_GEOADJ,
+         SPM_ENGVAL, PRDTRACE, PHIP_VAL, MCAID, NOW_MCAID, NOW_DEPNONM,
+         NOW_MRKUN, MRKUN, NOW_MRK, MRK, NOW_DIR, OWNDIR, COV, COV_CYR, AGI, 
+         EIT_CRED, CHSP_VAL, CSP_VAL, PAW_VAL, RINT_SC2, RINT_VAL1, PTOTVAL, DIS_HP,
+         DIS_CS, DIS_CS, DIS_YN, DIV_YN, DSAB_VAL, PEARNVAL, EARNER, LKWEEKS, LOSEWKS) %>%
+  filter(complete.cases(.))
+  
+```
 
+## Dimension Reduction
+```{r The_number_of_PC}
+library(factoextra)
+# scale data sets
+data1 <- data1 %>%
+  mutate_all(~(scale(.) %>% as.vector))
+# create PCA
+pca_1 <- prcomp(data1, scale = TRUE)
+#create scree plot to decide how many principal components to retain 
+screeplot(pca_1, type="lines")
+```
+The scree plot occurs at component 4, which is the “elbow” of the scree plot. Therefore, it cound be argued based on the basis of the scree plot that **the first three components** should be retained.
+
+```{r Dimension_reduction}
+# select all numeric variables
+data2 <- data %>%
+  select(-A_EXPLF)
+
+# create a recipe with no outcome variable and all predictors
+preprocess_rec <- recipe(~ ., data = data2) %>%
+  step_zv(all_predictors()) %>%
+  # center and scale (normalize) all predictors
+  step_normalize(all_numeric_predictors())%>%
+  # perform pca and use num_comp = 3 to only keep three components
+  step_pca(all_numeric(),num_comp = 3) %>%
+  # run prep to prepare recipe
+  prep()
+
+# obtain summary metrics (use number = 3)
+tidy(preprocess_rec, number = 3, type = "variance")
+
+# obtain loadings (use number = 3)
+tidy(preprocess_rec, number = 3, type = "coef")
+
+# apply recipe to data
+processed_data <- preprocess_rec %>%
+  bake(new_data = data2)
+
+#combine variables
+data_pca <- cbind(
+  data$A_EXPLF, processed_data
+)
+
+data_pca
+
+
+```
