@@ -1,0 +1,22 @@
+---
+title: "PPOL670 Final Project"
+author: "Ming Zhou & Huixin Cai"
+format: html
+editor: source
+editor_options: 
+  chunk_output_type: console
+warning: false
+self-contained: true
+---
+
+```{r set_up}
+# load data
+library(tidyverse)
+library(lubridate)
+library(dplyr)
+library(tidymodels)
+library(tidyclust)
+library(factoextra)
+library(broom)
+data <- read_csv("Data/pppub22.csv")
+
