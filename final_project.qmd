@@ -8,7 +8,7 @@ editor_options:
 warning: false
 self-contained: true
 ---
-
+# Data Loading
 ```{r set_up}
 # load data
 library(tidyverse)
@@ -26,12 +26,16 @@ data <- read_csv("Data/pppub22.csv") %>%
          SPM_ENGVAL, PRDTRACE, PHIP_VAL, MCAID, NOW_MCAID, NOW_DEPNONM,
          NOW_MRKUN, MRKUN, NOW_MRK, MRK, NOW_DIR, OWNDIR, COV, COV_CYR, AGI, 
          EIT_CRED, CHSP_VAL, CSP_VAL, PAW_VAL, RINT_SC2, RINT_VAL1, PTOTVAL, DIS_HP,
-         DIS_CS, DIS_CS, DIS_YN, DIV_YN, DSAB_VAL, PEARNVAL, EARNER, LKWEEKS, LOSEWKS) %>%
-  filter(complete.cases(.))
-  
+         DIS_CS, DIS_CS, DIS_YN, DIV_YN, DSAB_VAL, PEARNVAL, EARNER, LKWEEKS, LOSEWKS,
+         AGE1) %>%
+  #exclude observations with missing answers
+  filter(complete.cases(.)) %>%
+  #only include observations in the labor force (15-64)
+  filter(AGE1 <= 14 & AGE1 > 0)
 ```
 
-## Dimension Reduction
+# Dimension Reduction
+## Decide the number of principle components
 ```{r The_number_of_PC}
 library(factoextra)
 # scale data sets
@@ -44,6 +48,7 @@ screeplot(pca_1, type="lines")
 ```
 The scree plot occurs at component 4, which is the “elbow” of the scree plot. Therefore, it cound be argued based on the basis of the scree plot that **the first three components** should be retained.
 
+## Dimension Reducation with PCA
 ```{r Dimension_reduction}
 # select all numeric variables
 data2 <- data %>%
@@ -74,7 +79,148 @@ data_pca <- cbind(
   data$A_EXPLF, processed_data
 )
 
-data_pca
+# rename variable "data$A_EXPLF"
+data_pca <- rename(data_pca,
+       "A_EXPLF" = "data$A_EXPLF")
 
+# create new variable "in_labor"
+# If in the labor force, in_labor equals 1. 
+# If in the labor force, in_labor equals 1. 
+data_pca <- data_pca %>%
+  mutate(in_labor = 
+           if_else(A_EXPLF == 0,0,1)) 
 
+data_pca$in_labor <- as.factor(data_pca$in_labor)
+```
+
+# Supervised Modeling
+## Split data 
+```{r Split_data}
+set.seed(20221111)
+split_pca <- initial_split(data = data_pca, prop = 0.8)
+data_training_pca <- training(x = split_pca)
+data_testing_pca <- testing(x = split_pca)
+```
+
+## Exploratory data analysis 
+```{r Exploratory_data_analysis}
+data_training_pca %>%
+  ggplot(aes(x=in_labor)) +
+  geom_bar(aes(fill=in_labor)) +
+  scale_fill_discrete(labels=c('not in the labor force', 
+                               'in the labor force')) +
+  scale_x_discrete(labels = c('not in the labor force',
+                              'in the labor force')) +
+  labs(y = "The number of individuals",
+       x = "Whether in the labor force or not", 
+       title = "Nealy 1/3 of working population are not in the labor force", 
+       fill = "Whether in the labor force or not",
+       caption = "Source: census.gov")
+```
+
+## Create Recipe
+```{r}
+#Build a recipe 
+data_rec_pca <- recipe(in_labor~PC1+PC2+PC3, data = data_training_pca) %>%
+  # center and scale all predictors
+  step_normalize(all_predictors()) %>%
+  step_corr(all_predictors())
+```
+
+## Decision Tree 
+```{r decision_tree}
+tree_mod_pca <-
+  decision_tree() %>%
+  set_engine(engine = "rpart") %>%
+  set_mode(mode = "classification")
+
+tree_wf_pca <- workflow() %>%
+  add_recipe(data_rec_pca) %>%
+  add_model(tree_mod_pca)
+
+tree_fit_pca <- tree_wf_pca %>%
+  fit(data = data_training_pca)
+
+# fit to training data
+predictions_tree_pca  <- bind_cols(
+  data_training_pca,
+  predict(object = tree_fit_pca, 
+          new_data = data_training_pca),
+  predict(object = tree_fit_pca, 
+          new_data = data_training_pca, 
+          type = "prob"))
+
+select(predictions_tree_pca, in_labor, starts_with(".pred"))
+
+cm_tree_pca <- conf_mat(data = predictions_tree_pca,
+               truth = in_labor,
+               estimate = .pred_class)
+cm_tree_pca
+
+#create decision tree graph 
+rpart.plot::rpart.plot(x = tree_fit_pca$fit$fit$fit)
+```
+
+## Logistic Regression 
+```{r}
+show_engines('logistic_reg')
+library(nnet)
+folds <- vfold_cv(data = data_training_pca, v = 10)
+
+lm_mod_pca <- 
+  logistic_reg(penalty = 1) %>%
+  set_engine("glmnet") %>%
+  set_mode("classification")
+
+lm_wf_pca <- workflow() %>%
+  add_recipe(data_rec_pca) %>%
+  add_model(lm_mod_pca) 
+
+lm_cv_pca <- lm_wf_pca %>%
+  fit_resamples(resamples = folds)
+
+# select the best model based on the "accuracy" metric
+lm_best_pca <- lm_cv_pca %>%
+  select_best(metric = "accuracy")
+
+# to update (or "finalize") your workflow by modifying the line below
+lm_final_pca <- 
+  finalize_workflow(lm_wf_pca,
+                    parameters = lm_best_pca)
+
+lm_fit_pca <- lm_final_pca %>%
+  fit(data = data_training_pca)
+
+# fit to all training data
+predictions_lm_pca  <- bind_cols(
+  data_training_pca,
+  predict(object = lm_fit_pca, 
+          new_data = data_training_pca),
+  predict(object = lm_fit_pca, 
+          new_data = data_training_pca, type = "prob"))
+
+select(predictions_lm_pca, in_labor, starts_with(".pred"))
+
+cm_lm_pca <- conf_mat(data = predictions_lm_pca,
+               truth = in_labor,
+               estimate = .pred_class)
+cm_lm_pca
+```
+
+## Choose Decision Tree as our model 
+```{r}
+# fit to testing data
+predictions_tree_test_pca <- bind_cols(
+  data_testing_pca,
+  predict(object = tree_fit_pca, 
+          new_data = data_testing_pca),
+  predict(object = tree_fit_pca, 
+          new_data = data_testing_pca, type = "prob"))
+
+select(predictions_tree_pca, in_labor, starts_with(".pred"))
+
+cm_tree_test_pca <- conf_mat(data = predictions_tree_test_pca,
+               truth = in_labor,
+               estimate = .pred_class)
+cm_tree_test_pca
 ```
