@@ -25,8 +25,7 @@ data1 <- data %>%
          SPM_ENGVAL, PRDTRACE, PHIP_VAL, MCAID, NOW_MCAID, NOW_DEPNONM,
          NOW_MRKUN, MRKUN, NOW_MRK, MRK, NOW_DIR, OWNDIR, COV, COV_CYR, AGI, 
          EIT_CRED, CHSP_VAL, CSP_VAL, PAW_VAL, RINT_SC2, RINT_VAL1, PTOTVAL, DIS_HP,
-         DIS_CS, DIS_CS, DIS_YN, DIV_YN, DSAB_VAL, PEARNVAL, EARNER, LKWEEKS,
-         LOSEWKS)
+         DIS_CS, DIS_CS, DIS_YN, DIV_YN, DSAB_VAL, PEARNVAL, EARNER, LKWEEKS, LOSEWKS)
 
 # convert outcome variable to factor
 data1$A_EXPLF <- as.factor(data1$A_EXPLF)
@@ -173,7 +172,7 @@ predictions_lm  <- bind_cols(
   predict(object = lm_fit, new_data = data_training),
   predict(object = lm_fit, new_data = data_training, type = "prob"))
 
-select(predictions, A_EXPLF, starts_with(".pred"))
+select(predictions_lm, A_EXPLF, starts_with(".pred"))
 
 cm_lm <- conf_mat(data = predictions_lm,
                truth = A_EXPLF,
