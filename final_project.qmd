@@ -31,8 +31,164 @@ data <- read_csv("Data/pppub22.csv") %>%
   #exclude observations with missing answers
   filter(complete.cases(.)) %>%
   #only include observations in the labor force (15-64)
-  filter(AGE1 <= 14 & AGE1 > 0)
+  filter(AGE1 > 14 & AGE1 < 65)
+
+# create new variable "in_labor"
+# If in the labor force, in_labor equals 1. 
+# If in the labor force, in_labor equals 1. 
+data <- data %>%
+  mutate(in_labor = 
+           if_else(A_EXPLF == 0,0,1)) %>%
+  select(-A_EXPLF)
+
+data$in_labor <- as.factor(data$in_labor)
 ```
+## Supervised modeling without Dimension Reduction 
+*Split data*
+```{r Split_data}
+split_data <- initial_split(data = data, prop = 0.8)
+data_training <- training(x = split_data)
+data_testing <- testing(x = split_data)
+```
+*EDA*
+```{r}
+
+```
+*Cross validation* 
+```{r Cross_validation}
+set.seed(20221111)
+folds <- vfold_cv(data = data_training_pca, v = 10)
+```
+*Recipe*
+```{r Recipe}
+data_rec <- recipe(in_labor~., data = data_training) %>%
+  # center and scale all predictors
+  step_normalize(all_predictors()) %>%
+  step_corr(all_predictors())
+```
+
+## logistic model: all models failed
+```{r}
+lm_mod <- 
+  logistic_reg(penalty = 1) %>%
+  set_engine("glmnet") %>%
+  set_mode("classification")
+
+lm_w <- workflow() %>%
+  add_recipe(data_rec) %>%
+  add_model(lm_mod) 
+
+lm_cv <- lm_wf %>%
+  fit_resamples(resamples = folds)
+
+# select the best model based on the "accuracy" metric
+lm_best <- lm_cv %>%
+  select_best(metric = "accuracy")
+
+# to update (or "finalize") your workflow by modifying the line below
+lm_final <- 
+  finalize_workflow(lm_wf,
+                    parameters = lm_best)
+
+lm_fit <- lm_final %>%
+  fit(data = data_training)
+
+# fit to all training data
+predictions_lm  <- bind_cols(
+  data_training,
+  predict(object = lm_fit, 
+          new_data = data_training),
+  predict(object = lm_fit, 
+          new_data = data_training, type = "prob"))
+
+cm_lm <- conf_mat(data = predictions_lm,
+               truth = in_labor,
+               estimate = .pred_class)
+cm_lm
+```
+
+## LASSO model 
+```{r}
+# create a tuning grid for lasso regularization, varying the regularization penalty
+lasso_grid <- grid_regular(penalty(), levels = 10)
+
+# create a linear_regression model so that you can tune the penalty parameter
+lasso_mod <- linear_reg(
+  penalty = tune(), 
+  mixture = 1
+) %>%
+  set_engine("glmnet") 
+
+# create a workflow 
+lasso_wf <- workflow() %>%
+  add_recipe(data_rec) %>%
+  add_model(lasso_mod) 
+
+# perform hyperparameter tuning 
+lasso_cv <- lasso_wf %>%
+  tune_grid(
+    resamples = folds,
+    grid = lasso_grid
+  )
+
+# select the best model based on the "rmse" metric
+lasso_best <- lasso_cv %>%
+  select_best(metric = "rmse")
+
+# finalize the workflow 
+lasso_final <- finalize_workflow(
+  lasso_wf,
+  parameters = lasso_best
+)
+
+# fit to the training data and extract coefficients
+lasso_fit <- lasso_final %>%
+  fit(data = data_training) 
+
+#make predictions
+predictions_lasso  <- bind_cols(
+  data_training,
+  predict(object = lasso_fit, 
+          new_data = data_training),
+  predict(object = lasso_fit, 
+          new_data = data_training, type = "prob"))
+
+cm_lasso <- conf_mat(data = predictions_lasso,
+               truth = in_labor,
+               estimate = .pred_class)
+```
+## Decision Tree 
+```{r}
+tree_mod <-
+  decision_tree() %>%
+  set_engine(engine = "rpart") %>%
+  set_mode(mode = "classification")
+
+tree_wf <- workflow() %>%
+  add_recipe(data_rec) %>%
+  add_model(tree_mod)
+
+tree_fit <- tree_wf %>%
+  fit(data = data_training)
+
+# fit to training data
+predictions_tree  <- bind_cols(
+  data_training,
+  predict(object = tree_fit, 
+          new_data = data_training),
+  predict(object = tree_fit, 
+          new_data = data_training, 
+          type = "prob"))
+
+select(predictions_tree, in_labor, starts_with(".pred"))
+
+cm_tree <- conf_mat(data = predictions_tree,
+               truth = in_labor,
+               estimate = .pred_class)
+cm_tree
+```
+## Random Forest 
+
 
 # Dimension Reduction
 ## Decide the number of principle components
@@ -53,6 +209,7 @@ The scree plot occurs at component 4, which is the “elbow” of the scree plot
 # select all numeric variables
 data2 <- data %>%
   select(-A_EXPLF)
+#Cross Validation 
 
 # create a recipe with no outcome variable and all predictors
 preprocess_rec <- recipe(~ ., data = data2) %>%
@@ -83,14 +240,6 @@ data_pca <- cbind(
 data_pca <- rename(data_pca,
        "A_EXPLF" = "data$A_EXPLF")
 
-# create new variable "in_labor"
-# If in the labor force, in_labor equals 1. 
-# If in the labor force, in_labor equals 1. 
-data_pca <- data_pca %>%
-  mutate(in_labor = 
-           if_else(A_EXPLF == 0,0,1)) 
-
-data_pca$in_labor <- as.factor(data_pca$in_labor)
 ```
 
 # Supervised Modeling
@@ -104,6 +253,8 @@ data_testing_pca <- testing(x = split_pca)
 
 ## Exploratory data analysis 
 ```{r Exploratory_data_analysis}
+#correlation - PCA
+#
 data_training_pca %>%
   ggplot(aes(x=in_labor)) +
   geom_bar(aes(fill=in_labor)) +
