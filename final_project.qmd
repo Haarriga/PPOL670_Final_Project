@@ -22,7 +22,7 @@ library(ggplot2)
 library(parsnip)
 library(vip)
 data <- read_csv("Data/pppub22.csv") %>%
-  select(A_EXPLF,MIG_REG, SPM_NUMKIDS, SPM_ACTC, SPM_BBSUBVAL,
+  select(A_EXPLF,MIG_REG,SPM_NUMKIDS, SPM_ACTC, SPM_BBSUBVAL,
          SPM_FAMTYPE, SPM_CAPHOUSESUB, SPM_CAPWKCCXPNS, SPM_CHILDCAREXPNS,
          A_HGA, SPM_CHILDSUPPD, SPM_EITC, A_MARITL, HEA, SPM_FEDTAX, SPM_GEOADJ,
          SPM_ENGVAL, PRDTRACE, PHIP_VAL, MCAID, NOW_MCAID, NOW_DEPNONM,
@@ -153,7 +153,8 @@ data_rec <- recipe(in_labor~., data = data_training) %>%
   step_normalize(all_predictors()) %>%
   step_corr(all_predictors()) %>%
   # drop near zero variance predictors
-  step_nzv(all_predictors())
+  step_nzv(all_predictors()) %>%
+  step_zv(all_predictors())
 # see the engineered training data
 bake(prep(data_rec, training = data_training), new_data = data_training)
 ```
@@ -405,11 +406,9 @@ models
 # Dimension Reduction
 ## Decide the number of principle components
 ```{r The_number_of_PC}
-library(factoextra)
-# scale data sets
-data1 <- data1 %>%
-  mutate_all(~(scale(.) %>% as.vector))
-# create PCA
+data1 <- data %>%
+  select(-in_labor)
+#create PCA
 pca_1 <- prcomp(data1, scale = TRUE)
 #create scree plot to decide how many principal components to retain 
 screeplot(pca_1, type="lines")
@@ -418,18 +417,14 @@ The scree plot occurs at component 4, which is the “elbow” of the scree plot
 
 ## Dimension Reducation with PCA
 ```{r Dimension_reduction}
-# select all numeric variables
-data2 <- data %>%
-  select(-A_EXPLF)
-#Cross Validation 
-
 # create a recipe with no outcome variable and all predictors
-preprocess_rec <- recipe(~ ., data = data2) %>%
+preprocess_rec <- recipe(~ ., data = data1) %>%
   step_zv(all_predictors()) %>%
+  step_nzv(all_predictors()) %>%
   # center and scale (normalize) all predictors
   step_normalize(all_numeric_predictors())%>%
   # perform pca and use num_comp = 3 to only keep three components
-  step_pca(all_numeric(),num_comp = 3) %>%
+  step_pca(all_numeric_predictors(),num_comp = 3) %>%
   # run prep to prepare recipe
   prep()
 
@@ -441,44 +436,30 @@ tidy(preprocess_rec, number = 3, type = "coef")
 
 # apply recipe to data
 processed_data <- preprocess_rec %>%
-  bake(new_data = data2)
+  bake(new_data = data1)
 
 #combine variables
 data_pca <- cbind(
-  data$A_EXPLF, processed_data
+  data$in_labor, processed_data
 )
 
 # rename variable "data$A_EXPLF"
 data_pca <- rename(data_pca,
-       "A_EXPLF" = "data$A_EXPLF")
-
+       "in_labor" = "data$in_labor")
 ```
 
-# Supervised Modeling
+# Supervised Modeling with Dimension Reduction
 ## Split data 
 ```{r Split_data}
-set.seed(20221111)
 split_pca <- initial_split(data = data_pca, prop = 0.8)
 data_training_pca <- training(x = split_pca)
 data_testing_pca <- testing(x = split_pca)
 ```
 
-## Exploratory data analysis 
-```{r Exploratory_data_analysis}
-#correlation - PCA
-#
-data_training_pca %>%
-  ggplot(aes(x=in_labor)) +
-  geom_bar(aes(fill=in_labor)) +
-  scale_fill_discrete(labels=c('not in the labor force', 
-                               'in the labor force')) +
-  scale_x_discrete(labels = c('not in the labor force',
-                              'in the labor force')) +
-  labs(y = "The number of individuals",
-       x = "Whether in the labor force or not", 
-       title = "Nealy 1/3 of working population are not in the labor force", 
-       fill = "Whether in the labor force or not",
-       caption = "Source: census.gov")
+## Cross validation 
+```{r}
+set.seed(20221111)
+folds_pca <- vfold_cv(data = data_training_pca, v = 10)
 ```
 
 ## Create Recipe
@@ -490,21 +471,94 @@ data_rec_pca <- recipe(in_labor~PC1+PC2+PC3, data = data_training_pca) %>%
   step_corr(all_predictors())
 ```
 
+## LASSO Model 
+```{r}
+# create a tuning grid for lasso regularization,
+lasso_grid_pca <- grid_regular(penalty(), levels = 50)
+
+# create a logistic_regression model with tuning
+lasso_mod_pca <- logistic_reg(
+  penalty = tune(), 
+  mixture = 1) %>%
+  set_engine("glmnet")
+
+# create workflow
+lasso_wf_pca <- workflow() %>%
+  add_recipe(data_rec_pca) %>%
+  add_model(lasso_mod_pca) 
+
+# perform hyperparameter tuning 
+lasso_cv_pca <- lasso_wf_pca %>%
+  tune_grid(
+    resamples = folds_pca,
+    grid = lasso_grid_pca)
+
+# select the best model based on the "rmse" metric
+lasso_best_pca <- lasso_cv_pca %>%
+  select_best(metric = "accuracy")
+
+# finalize workflow
+lasso_final_pca <- finalize_workflow(
+  lasso_wf_pca,
+  parameters = lasso_best_pca)
+
+# fit to the training data and extract coefficients
+lasso_fit_pca <- lasso_final_pca %>%
+  fit(data = data_training_pca) 
+
+#make predictions
+predictions_lasso_pca  <- bind_cols(
+  data_training_pca,
+  predict(object = lasso_fit_pca, 
+          new_data = data_training_pca),
+  predict(object = lasso_fit_pca, 
+          new_data = data_training_pca, type = "prob"))
+
+cm_lasso_pca <- conf_mat(data = predictions_lasso_pca,
+               truth = in_labor,
+               estimate = .pred_class)
+cm_lasso_pca
+
+accuracy(data = predictions_lasso_pca,
+         truth = in_labor,
+         estimate = .pred_class)
+
+sensitivity(data = predictions_lasso_pca,
+         truth = in_labor,
+         estimate = .pred_class)
+```
+
 ## Decision Tree 
 ```{r decision_tree}
+#create model
 tree_mod_pca <-
   decision_tree() %>%
   set_engine(engine = "rpart") %>%
   set_mode(mode = "classification")
 
+#create workflow
 tree_wf_pca <- workflow() %>%
   add_recipe(data_rec_pca) %>%
   add_model(tree_mod_pca)
 
-tree_fit_pca <- tree_wf_pca %>%
-  fit(data = data_training_pca)
+#perform cross validation 
+tree_cv_pca <- tree_wf_pca %>%
+  fit_resamples(resamples = folds_pca)
 
-# fit to training data
+#select the best model based on the "accuracy" metric
+tree_best_pca <- tree_cv_pca %>%
+  select_best(metric = "accuracy")
+
+#finalize workflow
+tree_final_pca <- finalize_workflow(
+  tree_wf_pca,
+  parameters = tree_best_pca)
+
+#fit to the training data 
+tree_fit_pca <- tree_final_pca %>%
+  fit(data = data_training_pca) 
+
+#fit to training data
 predictions_tree_pca  <- bind_cols(
   data_training_pca,
   predict(object = tree_fit_pca, 
@@ -513,61 +567,83 @@ predictions_tree_pca  <- bind_cols(
           new_data = data_training_pca, 
           type = "prob"))
 
-select(predictions_tree_pca, in_labor, starts_with(".pred"))
-
 cm_tree_pca <- conf_mat(data = predictions_tree_pca,
                truth = in_labor,
                estimate = .pred_class)
 cm_tree_pca
 
+accuracy(data = predictions_tree_pca,
+         truth = in_labor,
+         estimate = .pred_class)
+
+sensitivity(data = predictions_tree_pca,
+         truth = in_labor,
+         estimate = .pred_class)
 #create decision tree graph 
 rpart.plot::rpart.plot(x = tree_fit_pca$fit$fit$fit)
 ```
 
-## Logistic Regression 
+## Random Forest 
 ```{r}
-show_engines('logistic_reg')
-library(nnet)
-folds <- vfold_cv(data = data_training_pca, v = 10)
+#create model
+rf_mod_pca <- rand_forest(trees = 100) %>%
+  set_mode("classification") %>%
+  set_engine("ranger")
 
-lm_mod_pca <- 
-  logistic_reg(penalty = 1) %>%
-  set_engine("glmnet") %>%
-  set_mode("classification")
-
-lm_wf_pca <- workflow() %>%
+#create workflow
+rf_wf_pca <- workflow() %>%
   add_recipe(data_rec_pca) %>%
-  add_model(lm_mod_pca) 
+  add_model(rf_mod_pca) 
 
-lm_cv_pca <- lm_wf_pca %>%
-  fit_resamples(resamples = folds)
+#perform cross validation
+rf_cv_pca <- rf_wf_pca %>%
+  fit_resamples(resamples = folds_pca)
 
-# select the best model based on the "accuracy" metric
-lm_best_pca <- lm_cv_pca %>%
+#select the best model based on the "accuracy" metric
+rf_best_pca <- rf_cv_pca %>%
   select_best(metric = "accuracy")
 
-# to update (or "finalize") your workflow by modifying the line below
-lm_final_pca <- 
-  finalize_workflow(lm_wf_pca,
-                    parameters = lm_best_pca)
+#finalize workflow
+rf_final_pca <- 
+  finalize_workflow(rf_wf_pca,
+                    parameters = rf_best_pca)
 
-lm_fit_pca <- lm_final_pca %>%
+rf_fit_pca <- rf_final_pca %>%
   fit(data = data_training_pca)
 
-# fit to all training data
-predictions_lm_pca  <- bind_cols(
+# make predictions
+predictions_rf_pca  <- bind_cols(
   data_training_pca,
-  predict(object = lm_fit_pca, 
+  predict(object = rf_fit_pca, 
           new_data = data_training_pca),
-  predict(object = lm_fit_pca, 
+  predict(object = rf_fit_pca, 
           new_data = data_training_pca, type = "prob"))
 
-select(predictions_lm_pca, in_labor, starts_with(".pred"))
-
-cm_lm_pca <- conf_mat(data = predictions_lm_pca,
+cm_rf_pca <- conf_mat(data = predictions_rf_pca,
                truth = in_labor,
                estimate = .pred_class)
-cm_lm_pca
+cm_rf_pca
+
+accuracy(data = predictions_rf_pca,
+         truth = in_labor,
+         estimate = .pred_class)
+
+sensitivity(data = predictions_rf_pca,
+         truth = in_labor,
+         estimate = .pred_class)
+```
+
+## Compare Models
+```{r}
+models_pca <- data.frame(
+  models = c("LASSO","Decision_Tree","Random_Forest"),
+  accuracy = c(0.803,0.834,0.960),
+  sensitivity = c(0.525,0.589,0.904)
+  )
+
+models_pca
+
+
 ```
 
 ## Choose Decision Tree as our model 
