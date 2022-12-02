@@ -35,13 +35,12 @@ data <- read_csv("Data/pppub22.csv") %>%
 
 # create new variable "in_labor"
 # If in the labor force, in_labor equals 1. 
-# If in the labor force, in_labor equals 1. 
 data <- data %>%
   mutate(in_labor = 
            if_else(A_EXPLF == 0,0,1)) %>%
   select(-A_EXPLF)
 
-data$in_labor <- as.factor(data$in_labor)
+
 ```
 ## Supervised modeling without Dimension Reduction 
 *Split data*
@@ -52,19 +51,27 @@ data_testing <- testing(x = split_data)
 ```
 *EDA*
 ```{r}
-
-```
-*Cross validation* 
-```{r Cross_validation}
-set.seed(20221111)
-folds <- vfold_cv(data = data_training_pca, v = 10)
+penguins_small_train %>%
+  ggplot(aes(x = flipper_length_mm, y = bill_length_mm, color = species)) +
+  geom_point(alpha = 0.5) +
+  theme_minimal()
 ```
 *Recipe*
 ```{r Recipe}
 data_rec <- recipe(in_labor~., data = data_training) %>%
   # center and scale all predictors
   step_normalize(all_predictors()) %>%
-  step_corr(all_predictors())
+  step_corr(all_predictors()) %>%
+  # drop near zero variance predictors
+  step_nzv(all_predictors())
+# see the engineered training data
+bake(prep(data_rec, training = data_training), new_data = data_training)
+```
+
+*Cross validation* 
+```{r Cross_validation}
+set.seed(20221111)
+folds <- vfold_cv(data = data_training, v = 10)
 ```
 
 ## logistic model: all models failed
@@ -109,15 +116,46 @@ cm_lm
 
 ## LASSO model 
 ```{r}
-# create a tuning grid for lasso regularization, varying the regularization penalty
-lasso_grid <- grid_regular(penalty(), levels = 10)
+# create a tuning grid for lasso regularization,
+# varying the regularization penalty
+lasso_grid <- grid_regular(penalty(), levels = 50)
 
-# create a linear_regression model so that you can tune the penalty parameter
+# create a linear_regression model so that we can tune the penalty parameter
+# set the mixture parameter to 1 and use "glmnet" for the engine
 lasso_mod <- linear_reg(
   penalty = tune(), 
-  mixture = 1
-) %>%
-  set_engine("glmnet") 
+  mixture = 1) %>%
+  set_engine("glmnet")
+
+# create a workflow using our updated linear regression model
+# and the same recipe defined above
+lasso_wf <- workflow() %>%
+  add_recipe(data_rec) %>%
+  add_model(lasso_mod) 
+
+# perform hyperparameter tuning using the lasso_grid
+# and the cross_validation folds created above
+lasso_cv <- lasso_wf %>%
+  tune_grid(
+    resamples = folds,
+    grid = lasso_grid)
+
+# select the best model based on the "rmse" metric
+lasso_best <- lasso_cv %>%
+  select_best(metric = "rmse")
+
+# use the finalize_workflow() function with our lasso workflow
+# and the best model to update our workflow
+lasso_final <- finalize_workflow(
+  lasso_wf,
+  parameters = lasso_best)
+
+# fit to the training data and extract coefficients
+lasso_coefs <- lasso_final %>%
+  fit(data = ames_train) %>%
+  extract_fit_parsnip() %>%
+  vi(lambda = lasso_best$penalty)
+
 
 # create a workflow 
 lasso_wf <- workflow() %>%
@@ -157,8 +195,11 @@ cm_lasso <- conf_mat(data = predictions_lasso,
                truth = in_labor,
                estimate = .pred_class)
 ```
+
 ## Decision Tree 
 ```{r}
+data$in_labor <- as.factor(data$in_labor)
+
 tree_mod <-
   decision_tree() %>%
   set_engine(engine = "rpart") %>%
