@@ -452,6 +452,7 @@ models
 data1 <- data %>%
   select(-in_labor)
 #create PCA
+set.seed(20221111)
 pca_1 <- prcomp(data1, scale = TRUE)
 #create scree plot to decide how many principal components to retain 
 screeplot(pca_1, type="lines")
@@ -530,9 +531,8 @@ data_rec_pca <- recipe(in_labor~PC1+PC2+PC3+case_wts,
 lasso_grid_pca <- grid_regular(penalty(), levels = 50)
 
 # create a logistic_regression model with tuning
-lasso_mod_pca <- logistic_reg(
-  penalty = tune(), 
-  mixture = 1) %>%
+lasso_mod_pca <- logistic_reg(penalty = tune(), 
+                              mixture = 1) %>%
   set_engine("glmnet")
 
 # create workflow
@@ -572,7 +572,7 @@ predictions_lasso_pca  <- bind_cols(
 cm_lasso_pca <- conf_mat(data = predictions_lasso_pca,
                truth = in_labor,
                estimate = .pred_class)
-cm_lasso_pca
+cm_lasso_pca 
 
 accuracy(data = predictions_lasso_pca,
          truth = in_labor,
@@ -594,7 +594,8 @@ tree_mod_pca <-
 #create workflow
 tree_wf_pca <- workflow() %>%
   add_recipe(data_rec_pca) %>%
-  add_model(tree_mod_pca)
+  add_model(tree_mod_pca) %>%
+  add_case_weights(case_wts) 
 
 #perform cross validation 
 tree_cv_pca <- tree_wf_pca %>%
@@ -642,15 +643,17 @@ rpart.plot::rpart.plot(x = tree_fit_pca$fit$fit$fit)
 
 ## Random Forest 
 ```{r}
+set.seed(20221111)
 #create model
 rf_mod_pca <- rand_forest(trees = 100) %>%
   set_mode("classification") %>%
-  set_engine("ranger")
+  set_engine("ranger", importance = "impurity")
 
 #create workflow
 rf_wf_pca <- workflow() %>%
   add_recipe(data_rec_pca) %>%
-  add_model(rf_mod_pca) 
+  add_model(rf_mod_pca) %>%
+  add_case_weights(case_wts) 
 
 #perform cross validation
 rf_cv_pca <- rf_wf_pca %>%
@@ -694,13 +697,43 @@ sensitivity(data = predictions_rf_pca,
 
 ## Compare Models
 ```{r}
-models_pca <- data.frame(
-  models = c("LASSO","Decision_Tree","Random_Forest"),
-  accuracy = c(0.803,0.834,0.960),
-  sensitivity = c(0.525,0.589,0.904)
+models_all <- data.frame(
+  models = c("Logistic",
+             "LASSO",
+             "Decision_Tree",
+             "Random_Forest",
+             "LASSO_PCA",
+             "Decision_Tree_PCA",
+             "Random_Forest_PCA"),
+  accuracy = c(0.716,0.929,0.922,0.969,
+               0.785,0.820,0.961),
+  sensitivity = c(0,0.850,0.879,0.984,
+                  0.782,0.743,0.999)
   )
 
-models_pca
+highight <- 
+  models_all %>%
+  filter(models == "Decision_Tree" |
+           models == "Random_Forest_PCA")
+  
+models_all %>%
+  ggplot() +  
+  geom_text(aes(x = accuracy, 
+                y = sensitivity, 
+                label = models),
+            check_overlap = TRUE,
+            nudge_x = -0.005,
+            nudge_y = -0.008,
+            size = 3,
+            angle = 45,
+            fontface = "bold") +
+  geom_point(aes(x = accuracy, y = sensitivity),
+             size = 3) +
+  geom_point(data = highight,
+             aes(x = accuracy, y = sensitivity),
+             color = "red",
+             size = 3) +
+  labs(title = "Decision tree and Random forest with PCA have relatively high accuracy and sensitivity")
 ```
 
 ## Choose Decision Tree as our model 
