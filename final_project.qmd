@@ -235,7 +235,7 @@ logistic_fit %>%
   vip(num_features = 10)
 ```
 
-## LASSO model 
+## LASSO Model 
 ```{r LASSO}
 # create a tuning grid for lasso regularization
 lasso_grid <- grid_regular(penalty(), levels = 50)
@@ -377,7 +377,7 @@ tree_fit %>%
 ## Random Forest 
 ```{r Random_forest}
 library(randomForest)
-show_engines('rand_forest')
+set.seed(20221111)
 
 #create model
 rf_mod <- rand_forest(trees = 100) %>%
@@ -497,6 +497,17 @@ data_training_pca <- training(x = split_pca)
 data_testing_pca <- testing(x = split_pca)
 ```
 
+*Weigh Data*
+Since we would like to encourage models to more accurately predict the individuals who are not in the labor force, we can give these samples a much larger weight in the analysis. 
+```{r}
+data_training_pca %>% count(in_labor)
+
+data_training_pca <- data_training_pca %>%
+    mutate(
+      case_wts = if_else(in_labor == "0", 2.5, 1),
+      case_wts = importance_weights(case_wts))
+```
+
 *Cross validation*
 ```{r}
 folds_pca <- vfold_cv(data = data_training_pca, v = 10)
@@ -505,11 +516,13 @@ folds_pca <- vfold_cv(data = data_training_pca, v = 10)
 *Create Recipe*
 ```{r}
 #Build a recipe 
-data_rec_pca <- recipe(in_labor~PC1+PC2+PC3, data = data_training_pca) %>%
+data_rec_pca <- recipe(in_labor~PC1+PC2+PC3, 
+                       data = data_training_pca) %>%
   # center and scale all predictors
   step_normalize(all_predictors()) %>%
   step_corr(all_predictors())
 ```
+
 
 ## LASSO Model 
 ```{r}
@@ -542,7 +555,7 @@ lasso_final_pca <- finalize_workflow(
   lasso_wf_pca,
   parameters = lasso_best_pca)
 
-# fit to the training data and extract coefficients
+# fit the model to the training data 
 lasso_fit_pca <- lasso_final_pca %>%
   fit(data = data_training_pca) 
 
@@ -554,6 +567,7 @@ predictions_lasso_pca  <- bind_cols(
   predict(object = lasso_fit_pca, 
           new_data = data_training_pca, type = "prob"))
 
+#generate confusion matrix 
 cm_lasso_pca <- conf_mat(data = predictions_lasso_pca,
                truth = in_labor,
                estimate = .pred_class)
@@ -594,11 +608,11 @@ tree_final_pca <- finalize_workflow(
   tree_wf_pca,
   parameters = tree_best_pca)
 
-#fit to the training data 
+#fit the model to the training data 
 tree_fit_pca <- tree_final_pca %>%
   fit(data = data_training_pca) 
 
-#fit to training data
+#make predictions
 predictions_tree_pca  <- bind_cols(
   data_training_pca,
   predict(object = tree_fit_pca, 
@@ -607,6 +621,7 @@ predictions_tree_pca  <- bind_cols(
           new_data = data_training_pca, 
           type = "prob"))
 
+#generate confusion matrix
 cm_tree_pca <- conf_mat(data = predictions_tree_pca,
                truth = in_labor,
                estimate = .pred_class)
@@ -619,6 +634,7 @@ accuracy(data = predictions_tree_pca,
 sensitivity(data = predictions_tree_pca,
          truth = in_labor,
          estimate = .pred_class)
+
 #create decision tree graph 
 rpart.plot::rpart.plot(x = tree_fit_pca$fit$fit$fit)
 ```
@@ -648,6 +664,7 @@ rf_final_pca <-
   finalize_workflow(rf_wf_pca,
                     parameters = rf_best_pca)
 
+#fit the model to the training data
 rf_fit_pca <- rf_final_pca %>%
   fit(data = data_training_pca)
 
@@ -659,6 +676,7 @@ predictions_rf_pca  <- bind_cols(
   predict(object = rf_fit_pca, 
           new_data = data_training_pca, type = "prob"))
 
+#generate confusion matrix 
 cm_rf_pca <- conf_mat(data = predictions_rf_pca,
                truth = in_labor,
                estimate = .pred_class)
@@ -686,7 +704,7 @@ models_pca
 
 ## Choose Decision Tree as our model 
 ```{r}
-# fit to testing data
+# fit the model to the testing data and make predictions
 predictions_tree_test_pca <- bind_cols(
   data_testing_pca,
   predict(object = tree_fit_pca, 
@@ -694,10 +712,16 @@ predictions_tree_test_pca <- bind_cols(
   predict(object = tree_fit_pca, 
           new_data = data_testing_pca, type = "prob"))
 
-select(predictions_tree_pca, in_labor, starts_with(".pred"))
-
+#generate confusion matrix 
 cm_tree_test_pca <- conf_mat(data = predictions_tree_test_pca,
                truth = in_labor,
                estimate = .pred_class)
+
 cm_tree_test_pca
+
+#plot distributions of the predicted probability distributions for each class 
+predictions_tree_test_pca %>%
+  ggplot() +
+  geom_density(aes(x = .pred_pos, fill = in_labor), 
+               alpha = 0.5)
 ```
