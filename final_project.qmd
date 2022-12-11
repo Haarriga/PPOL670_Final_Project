@@ -21,6 +21,7 @@ library(broom)
 library(ggplot2)
 library(parsnip)
 library(vip)
+library(reshape2)
 data <- read_csv("Data/pppub22.csv")%>%
   select(A_EXPLF,MIG_REG,SPM_NUMKIDS, SPM_ACTC, SPM_BBSUBVAL,
          SPM_FAMTYPE, SPM_CAPHOUSESUB, SPM_CAPWKCCXPNS, SPM_CHILDCAREXPNS,
@@ -54,8 +55,8 @@ data_training <- training(x = split_data)
 data_testing <- testing(x = split_data)
 ```
 
-*EDA*
-1) The labor participation by gender
+## EDA
+### 1) The labor participation by gender
 ```{r}
 # The labor participation by gender
 data_training %>%
@@ -68,27 +69,32 @@ data_training %>%
   scale_y_continuous(name = "The number of individuals") +
   labs(title = "Fewer females join the labor force compared to male",
        caption="Data scource: Census.gov")
-
 ```
-*EDA*
-2) The correlation between each variables
+
+### 2) The correlation between each variables
 ```{r}
+library(reshape2)
+library(ggplot2)
 # The correlation between each variables
 data_training1 <- data_training %>%
-  select(-in_labor) 
+  select(-in_labor)
 
-cormat <- round(cor(data_training1),2)
-cormat
-library(reshape2)
-reorder_cormat <- function(cormat){
-# Use correlation between variables as distance
-dd <- as.dist((1-cormat)/2)
-hc <- hclust(dd)
-cormat <-cormat[hc$order, hc$order]
+# Generate correlation matrix
+cormat <- round(cor(data_training1),1)
+
+# Get lower triangle of the correlation matrix
+get_lower_tri<-function(cormat){
+  cormat[upper.tri(cormat)] <- NA
+  return(cormat)
 }
-# Reorder the correlation matrix
-cormat <- reorder_cormat(cormat)
+# Get upper triangle of the correlation matrix
+get_upper_tri <- function(cormat){
+  cormat[lower.tri(cormat)]<- NA
+  return(cormat)
+}
+
 upper_tri <- get_upper_tri(cormat)
+
 # Melt the correlation matrix
 melted_cormat <- melt(upper_tri, na.rm = TRUE)
 # Create a ggheatmap
