@@ -736,26 +736,77 @@ models_all %>%
   labs(title = "Decision tree and Random forest with PCA have relatively high accuracy and sensitivity")
 ```
 
-## Choose Decision Tree as our model 
+## Final model 1: Random Forest with PCA 
 ```{r}
 # fit the model to the testing data and make predictions
-predictions_tree_test_pca <- bind_cols(
+predictions_rf_test_pca <- bind_cols(
   data_testing_pca,
-  predict(object = tree_fit_pca, 
+  predict(object = rf_fit_pca, 
           new_data = data_testing_pca),
-  predict(object = tree_fit_pca, 
+  predict(object = rf_fit_pca, 
           new_data = data_testing_pca, type = "prob"))
 
 #generate confusion matrix 
-cm_tree_test_pca <- conf_mat(data = predictions_tree_test_pca,
+cm_rf_test_pca <- conf_mat(
+  data = predictions_rf_test_pca,
+  truth = in_labor,
+  estimate = .pred_class)
+
+cm_rf_test_pca
+
+accuracy(data = predictions_rf_test_pca,
+         truth = in_labor,
+         estimate = .pred_class)
+
+sensitivity(data = predictions_rf_test_pca,
+         truth = in_labor,
+         estimate = .pred_class)
+
+#plot distributions of the predicted probability distributions for each class 
+predictions_rf_test_pca %>%
+  ggplot() +
+  geom_density(aes(x = .pred_0, fill = in_labor), 
+               alpha = 0.5)+
+  scale_fill_discrete(name = "Whether in labor force",
+                      labels = c("not in labor force",
+                                 "in labor force"))+
+  labs(title = "Sensitivity is high in the model of Random forest with PCA",
+       x = "The probability of being predicted not in labor force") 
+```
+
+## Final model 2: Decision Tree with PCA 
+```{r}
+# fit the model to the testing data and make predictions
+predictions_tree_test <- bind_cols(
+  data_testing,
+  predict(object = tree_fit, 
+          new_data = data_testing),
+  predict(object = tree_fit, 
+          new_data = data_testing, type = "prob"))
+
+#generate confusion matrix 
+cm_tree_test <- conf_mat(data = predictions_tree_test,
                truth = in_labor,
                estimate = .pred_class)
 
-cm_tree_test_pca
+cm_tree_test
+
+accuracy(data = predictions_tree_test,
+         truth = in_labor,
+         estimate = .pred_class)
+
+sensitivity(data = predictions_tree_test,
+         truth = in_labor,
+         estimate = .pred_class)
 
 #plot distributions of the predicted probability distributions for each class 
-predictions_tree_test_pca %>%
+predictions_tree_test %>%
   ggplot() +
-  geom_density(aes(x = .pred_pos, fill = in_labor), 
-               alpha = 0.5)
+  geom_density(aes(x = .pred_0, fill = in_labor), 
+               alpha = 0.5)+
+  scale_fill_discrete(name = "Whether in labor force",
+                      labels = c("not in labor force",
+                                 "in labor force"))+
+  labs(title = "Sensitivity and Accuracy are both significantly high in the Decision Tree model",
+       x = "The probability of being predicted not in labor force") 
 ```
