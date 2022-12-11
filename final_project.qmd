@@ -203,10 +203,11 @@ logistic_final <-
   finalize_workflow(logistic_w,
                     parameters = logistic_best)
 
+#fit model to the training data
 logistic_fit <- logistic_final %>%
   fit(data = data_training)
 
-# fit to all training data
+#make predictions
 predictions_logistic  <- bind_cols(
   data_training,
   predict(object = logistic_fit, 
@@ -214,6 +215,7 @@ predictions_logistic  <- bind_cols(
   predict(object = logistic_fit, 
           new_data = data_training, type = "prob"))
 
+#generate confusion matrix
 cm_logistic <- conf_mat(data = predictions_logistic,
                truth = in_labor,
                estimate = .pred_class)
@@ -226,6 +228,11 @@ accuracy(data = predictions_logistic,
 sensitivity(data = predictions_logistic,
          truth = in_labor,
          estimate = .pred_class)
+
+#variable importance 
+logistic_fit %>%
+  extract_fit_parsnip() %>%
+  vip(num_features = 10)
 ```
 
 ## LASSO model 
@@ -261,7 +268,7 @@ lasso_final <- finalize_workflow(
   lasso_wf,
   parameters = lasso_best)
 
-#fit to the training data 
+#fit model to the training data
 lasso_fit <- lasso_final %>%
   fit(data = data_training) 
 
@@ -273,6 +280,7 @@ predictions_lasso  <- bind_cols(
   predict(object = lasso_fit, 
           new_data = data_training, type = "prob"))
 
+#generate confusion matrix
 cm_lasso <- conf_mat(data = predictions_lasso,
                truth = in_labor,
                estimate = .pred_class)
@@ -286,6 +294,11 @@ accuracy(data = predictions_lasso,
 sensitivity(data = predictions_lasso,
          truth = in_labor,
          estimate = .pred_class)
+
+#variable importance 
+lasso_fit %>%
+  extract_fit_parsnip() %>%
+  vip(num_features = 10)
 ```
 
 ## Compare Lasso and Logistic model
@@ -312,7 +325,8 @@ tree_mod <-
 #create workflow
 tree_wf <- workflow() %>%
   add_recipe(data_rec) %>%
-  add_model(tree_mod)
+  add_model(tree_mod) %>%
+  add_case_weights(case_wts)
 
 #perform cross validation 
 tree_cv <- tree_wf %>%
@@ -327,11 +341,11 @@ tree_final <- finalize_workflow(
   tree_wf,
   parameters = tree_best)
 
-#fit to the training data 
+#fit model to the training data
 tree_fit <- tree_final %>%
   fit(data = data_training) 
 
-#fit to training data
+#make predictions 
 predictions_tree  <- bind_cols(
   data_training,
   predict(object = tree_fit, 
@@ -340,8 +354,7 @@ predictions_tree  <- bind_cols(
           new_data = data_training, 
           type = "prob"))
 
-select(predictions_tree, in_labor, starts_with(".pred"))
-
+#generate comfusion matrix
 cm_tree <- conf_mat(data = predictions_tree,
                truth = in_labor,
                estimate = .pred_class)
@@ -354,6 +367,11 @@ accuracy(data = predictions_tree,
 sensitivity(data = predictions_tree,
          truth = in_labor,
          estimate = .pred_class)
+
+#variable importance 
+tree_fit %>%
+  extract_fit_parsnip() %>%
+  vip(num_features = 10)
 ```
 
 ## Random Forest 
@@ -369,7 +387,8 @@ rf_mod <- rand_forest(trees = 100) %>%
 #create workflow
 rf_wf <- workflow() %>%
   add_recipe(data_rec) %>%
-  add_model(rf_mod) 
+  add_model(rf_mod) %>%
+  add_case_weights(case_wts)
 
 #perform cross validation
 rf_cv <- rf_wf %>%
@@ -384,10 +403,11 @@ rf_final <-
   finalize_workflow(rf_wf,
                     parameters = rf_best)
 
+#fit model to the training data
 rf_fit <- rf_final %>%
   fit(data = data_training)
 
-# fit to all training data
+# make predictions
 predictions_rf  <- bind_cols(
   data_training,
   predict(object = rf_fit, 
@@ -395,6 +415,7 @@ predictions_rf  <- bind_cols(
   predict(object = rf_fit, 
           new_data = data_training, type = "prob"))
 
+#generate confusion matrix
 cm_rf <- conf_mat(data = predictions_rf,
                truth = in_labor,
                estimate = .pred_class)
@@ -407,6 +428,11 @@ accuracy(data = predictions_rf,
 sensitivity(data = predictions_rf,
          truth = in_labor,
          estimate = .pred_class)
+
+#variable importance 
+rf_fit %>%
+  extract_fit_parsnip() %>%
+  vip(num_features = 1)
 ```
 
 ## Compare models 
