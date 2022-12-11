@@ -21,7 +21,7 @@ library(broom)
 library(ggplot2)
 library(parsnip)
 library(vip)
-data <- read_csv("Data/pppub22.csv") %>%
+data <- read_csv("Data/pppub22.csv")%>%
   select(A_EXPLF,MIG_REG,SPM_NUMKIDS, SPM_ACTC, SPM_BBSUBVAL,
          SPM_FAMTYPE, SPM_CAPHOUSESUB, SPM_CAPWKCCXPNS, SPM_CHILDCAREXPNS,
          A_HGA, SPM_CHILDSUPPD, SPM_EITC, A_MARITL, HEA, SPM_FEDTAX, SPM_GEOADJ,
@@ -48,10 +48,12 @@ data$in_labor <- as.factor(data$in_labor)
 # Supervised modeling without Dimension Reduction 
 *Split data*
 ```{r Split_data}
+set.seed(20221111)
 split_data <- initial_split(data = data, prop = 0.8)
 data_training <- training(x = split_data)
 data_testing <- testing(x = split_data)
 ```
+
 *EDA*
 1) The labor participation by gender
 ```{r}
@@ -146,22 +148,31 @@ ggplot(data = data_training,
   labs(title = "PTOTVAL & PEARNVAL are highly correlated",
        caption="Data scource: Census.gov")
 ```
+*Weigh Data*
+Since we would like to encourage models to more accurately predict the individuals who are not in the labor force, we can give these samples a much larger weight in the analysis. 
+```{r}
+data_training %>% count(in_labor)
+
+data_training <- data_training %>%
+    mutate(
+      case_wts = if_else(in_labor == "0", 2.5, 1),
+      case_wts = importance_weights(case_wts))
+```
 *Recipe*
 ```{r Recipe}
 data_rec <- recipe(in_labor~., data = data_training) %>%
   # center and scale all predictors
-  step_normalize(all_predictors()) %>%
-  step_corr(all_predictors()) %>%
+  step_normalize(all_numeric_predictors()) %>%
+  step_corr(all_numeric_predictors()) %>%
   # drop near zero variance predictors
-  step_nzv(all_predictors()) %>%
-  step_zv(all_predictors())
+  step_nzv(all_numeric_predictors()) %>%
+  step_zv(all_numeric_predictors())
 # see the engineered training data
 bake(prep(data_rec, training = data_training), new_data = data_training)
 ```
 
 *Cross validation*
 ```{r Cross_validation}
-set.seed(20221111)
 folds <- vfold_cv(data = data_training, v = 10)
 ```
 
@@ -171,12 +182,13 @@ folds <- vfold_cv(data = data_training, v = 10)
 logistic_mod <- 
   logistic_reg(penalty = 1) %>%
   set_engine("glmnet") %>%
-  set_mode("classification")
+  set_mode("classification") 
 
 #create workflow
 logistic_w <- workflow() %>%
   add_recipe(data_rec) %>%
-  add_model(logistic_mod) 
+  add_model(logistic_mod) %>%
+  add_case_weights(case_wts) 
 
 #perform cross validation 
 logistic_cv <- logistic_w %>%
@@ -223,14 +235,16 @@ lasso_grid <- grid_regular(penalty(), levels = 50)
 
 # create a linear_regression model so that we can tune the penalty parameter
 # set the mixture parameter to 1 and use "glmnet" for the engine
-lasso_mod <- logistic_reg(penalty = tune(),
+lasso_mod <- 
+  logistic_reg(penalty = tune(),
                           mixture = 1) %>%
   set_engine("glmnet")
 
 # create a workflow using logistic regression model
 lasso_wf <- workflow() %>%
   add_recipe(data_rec) %>%
-  add_model(lasso_mod) 
+  add_model(lasso_mod) %>%
+  add_case_weights(case_wts)
 
 # perform hyperparameter tuning
 lasso_cv <- lasso_wf %>%
@@ -275,6 +289,8 @@ sensitivity(data = predictions_lasso,
 ```
 
 ## Compare Lasso and Logistic model
+The standard error of the LASSO model's accuracy is much lower than the logistic's, and the mean of LASSO model's accuracy is much higher than the logistic's. LASSO model has higher precision in this case. 
+
 ```{r Compare_LASSO_logistic}
 LASSO_Logistic <- bind_rows(
   `logistic` = show_best(logistic_cv, metric = "accuracy", n = 1),
@@ -339,6 +355,7 @@ sensitivity(data = predictions_tree,
          truth = in_labor,
          estimate = .pred_class)
 ```
+
 ## Random Forest 
 ```{r Random_forest}
 library(randomForest)
@@ -449,20 +466,20 @@ data_pca <- rename(data_pca,
 ```
 
 # Supervised Modeling with Dimension Reduction
-## Split data 
+*Split data*
 ```{r Split_data}
+set.seed(20221111)
 split_pca <- initial_split(data = data_pca, prop = 0.8)
 data_training_pca <- training(x = split_pca)
 data_testing_pca <- testing(x = split_pca)
 ```
 
-## Cross validation 
+*Cross validation*
 ```{r}
-set.seed(20221111)
 folds_pca <- vfold_cv(data = data_training_pca, v = 10)
 ```
 
-## Create Recipe
+*Create Recipe*
 ```{r}
 #Build a recipe 
 data_rec_pca <- recipe(in_labor~PC1+PC2+PC3, data = data_training_pca) %>%
@@ -642,8 +659,6 @@ models_pca <- data.frame(
   )
 
 models_pca
-
-
 ```
 
 ## Choose Decision Tree as our model 
