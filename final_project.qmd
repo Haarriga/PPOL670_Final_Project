@@ -525,7 +525,7 @@ data_rec_pca <- recipe(in_labor~PC1+PC2+PC3+case_wts,
 ```
 
 
-## LASSO Model 
+## LASSO Model with PCA
 ```{r}
 # create a tuning grid for lasso regularization,
 lasso_grid_pca <- grid_regular(penalty(), levels = 50)
@@ -583,7 +583,7 @@ sensitivity(data = predictions_lasso_pca,
          estimate = .pred_class)
 ```
 
-## Decision Tree 
+## Decision Tree with PCA
 ```{r decision_tree}
 #create model
 tree_mod_pca <-
@@ -641,7 +641,7 @@ sensitivity(data = predictions_tree_pca,
 rpart.plot::rpart.plot(x = tree_fit_pca$fit$fit$fit)
 ```
 
-## Random Forest 
+## Random Forest with PCA
 ```{r}
 set.seed(20221111)
 #create model
@@ -695,7 +695,7 @@ sensitivity(data = predictions_rf_pca,
          estimate = .pred_class)
 ```
 
-## Compare Models
+# Compare Models
 ```{r}
 models_all <- data.frame(
   models = c("Logistic",
@@ -774,7 +774,7 @@ predictions_rf_test_pca %>%
        x = "The probability of being predicted not in labor force") 
 ```
 
-## Final model 2: Decision Tree with PCA 
+## Final model 2: Decision Tree 
 ```{r}
 # fit the model to the testing data and make predictions
 predictions_tree_test <- bind_cols(
