@@ -57,11 +57,12 @@ data_testing <- testing(x = split_data)
 
 ## EDA
 ### 1) The labor participation by gender
+After plotting the labor participation by gender, we find that there are relatively smaller poprotion of the sample not in labor force. And fewer females join the labor force compared to male. 
 ```{r}
 # The labor participation by gender
 data_training %>%
   ggplot(aes(x = in_labor)) +
-  geom_bar(aes(fill = factor(A_SEX))) +
+  geom_bar(aes(fill = factor(A_SEX)), position = "dodge") +
   scale_fill_discrete(name = "Sex",
                       labels = c("Male", "Female")) +
   scale_x_discrete(name = "Labor Status",
@@ -72,6 +73,7 @@ data_training %>%
 ```
 
 ### 2) The correlation between each variables
+To visualize the correlation between each variables, we create a heat map. The heat map shows the magnitude of the correlation in two dimensions, and the variation in color is designed by intensity. As shown in the heat map, some variables in the data set are highly correlated. For example, PTOTVAL (total person income) and SPM_FEDTAX (Supplemental Poverty Measure unit's Federal tax) are positively correlated, COV (whether individuals have any health insurance coverage last year) and SPM_CAPWKCCXPNS (Supplemental Poverty Measure unit's child care expenses-not capped) are negatively correlated.  
 ```{r}
 library(reshape2)
 library(ggplot2)
@@ -87,6 +89,7 @@ get_lower_tri<-function(cormat){
   cormat[upper.tri(cormat)] <- NA
   return(cormat)
 }
+
 # Get upper triangle of the correlation matrix
 get_upper_tri <- function(cormat){
   cormat[lower.tri(cormat)]<- NA
@@ -114,46 +117,47 @@ ggheatmap <-
   coord_fixed()+
   labs(title = "The correlation between variables",
        caption="Data scource: Census.gov")
+
 # Print the heatmap
 print(ggheatmap)
 ```
-*EDA*
-3) The distribution of variables
+
+### 3) Some variables are highly correlated
+To better visualize the high correlation between variables in the data set, we also use geom_smooth and geom_point. As shown in the graph, educational attainment and total persons income are highly correlated. Individuals with higher education are expected to have higher personal income. 
 ```{r}
-#The distribution of SPM_ACTC
+ggplot(data = data_training, 
+       aes(x = A_HGA,
+           y = PTOTVAL)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth(method = "auto") +
+  labs(title = "A_HGA & PTOTVAL are highly correlated",
+       x = "Educational attainment",
+       y= "total persons income", 
+       caption="Data scource: Census.gov")
+```
+
+### 4) The distribution of variables
+After plotting the distribution of some independent variables in our data set, we find that some variables are highly skewed and clustered around some values. 
+```{r}
+#The distribution of SPM_ACTC (SPM units Additional Child Tax Credit)
 ggplot(data = data_training, 
        aes(x = SPM_ACTC)) +
   geom_histogram() +
-  labs(title = "The distribution of SPM_ACTC is skewed",
+  labs(title = "The distribution of SPM units Additional Child Tax Credit is skewed and is clustered around 0",
+       x = "SPM units Additional Child Tax Credit",
+       y = "the number of individuals",
        caption="Data scource: Census.gov")
 
-#The distribution of SPM_CAPWKCCXPNS
+#The distribution of SPM_CAPWKCCXPNS (SPM unit's capped work and child care expenses)
 ggplot(data = data_training, 
        aes(x = SPM_CAPWKCCXPNS)) +
   geom_histogram() +
   scale_x_continuous(limits=c(0,50000,100000))+
-  labs(title = "The distribution of SPM_CAPWKCCXPNS is skewed",
+  labs(title = "The distribution of SPM unit's capped work and child care expenses is skewed",
+       x = "SPM unit's capped work and child care expenses",
        caption="Data scource: Census.gov")
+```
 
-#The distribution of SPM_CAPWKCCXPNS
-ggplot(data = data_training, 
-       aes(x = SPM_CAPWKCCXPNS)) +
-  geom_histogram() +
-  scale_x_continuous(limits=c(0,50000,100000))+
-  labs(title = "The distribution of SPM_CAPWKCCXPNS is skewed",
-       caption="Data scource: Census.gov")
-```
-*EDA*
-4) Some variables are highly correlated
-```{r}
-ggplot(data = data_training, 
-       aes(x = PTOTVAL,
-           y = PEARNVAL)) +
-  geom_point(alpha = 0.1) +
-  geom_smooth(method = "lm") +
-  labs(title = "PTOTVAL & PEARNVAL are highly correlated",
-       caption="Data scource: Census.gov")
-```
 *Weigh Data*
 Since we would like to encourage models to more accurately predict the individuals who are not in the labor force, we can give these samples a much larger weight in the analysis. 
 ```{r}
