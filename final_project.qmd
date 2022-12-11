@@ -516,7 +516,7 @@ folds_pca <- vfold_cv(data = data_training_pca, v = 10)
 *Create Recipe*
 ```{r}
 #Build a recipe 
-data_rec_pca <- recipe(in_labor~PC1+PC2+PC3, 
+data_rec_pca <- recipe(in_labor~PC1+PC2+PC3+case_wts, 
                        data = data_training_pca) %>%
   # center and scale all predictors
   step_normalize(all_predictors()) %>%
@@ -538,7 +538,8 @@ lasso_mod_pca <- logistic_reg(
 # create workflow
 lasso_wf_pca <- workflow() %>%
   add_recipe(data_rec_pca) %>%
-  add_model(lasso_mod_pca) 
+  add_model(lasso_mod_pca) %>%
+  add_case_weights(case_wts) 
 
 # perform hyperparameter tuning 
 lasso_cv_pca <- lasso_wf_pca %>%
