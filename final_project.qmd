@@ -382,7 +382,7 @@ show_engines('rand_forest')
 #create model
 rf_mod <- rand_forest(trees = 100) %>%
   set_mode("classification") %>%
-  set_engine("ranger")
+  set_engine("ranger",importance = "impurity") 
 
 #create workflow
 rf_wf <- workflow() %>%
@@ -430,17 +430,17 @@ sensitivity(data = predictions_rf,
          estimate = .pred_class)
 
 #variable importance 
-rf_fit %>%
-  extract_fit_parsnip() %>%
-  vip(num_features = 1)
+ranger_obj <- pull_workflow_fit(rf_fit)$fit
+vip(ranger_obj,
+    geom = "col")
 ```
 
 ## Compare models 
 ```{r}
 models <- data.frame(
   models = c("logistic","LASSO","Decision_Tree","Random_Forest"),
-  accuracy = c(0.719,0.930,0.930,0.958),
-  sensitivity = c(0,0.850,0.851,0.918)
+  accuracy = c(0.716,0.929,0.922,0.969),
+  sensitivity = c(0,0.850,0.879,0.984)
   )
 
 models
@@ -462,8 +462,8 @@ The scree plot occurs at component 4, which is the “elbow” of the scree plot
 ```{r Dimension_reduction}
 # create a recipe with no outcome variable and all predictors
 preprocess_rec <- recipe(~ ., data = data1) %>%
-  step_zv(all_predictors()) %>%
-  step_nzv(all_predictors()) %>%
+  step_zv(all_numeric_predictors()) %>%
+  step_nzv(all_numeric_predictors()) %>%
   # center and scale (normalize) all predictors
   step_normalize(all_numeric_predictors())%>%
   # perform pca and use num_comp = 3 to only keep three components
@@ -473,9 +473,6 @@ preprocess_rec <- recipe(~ ., data = data1) %>%
 
 # obtain summary metrics (use number = 3)
 tidy(preprocess_rec, number = 3, type = "variance")
-
-# obtain loadings (use number = 3)
-tidy(preprocess_rec, number = 3, type = "coef")
 
 # apply recipe to data
 processed_data <- preprocess_rec %>%
