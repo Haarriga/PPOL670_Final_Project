@@ -1,5 +1,5 @@
 # PPOL670 Final Project
-## Ming & Huixin
+## Ming Zhou & Huixin Cai
 
 Repository: https://github.com/Haarriga/PPOL670_Final_Project.git
 
