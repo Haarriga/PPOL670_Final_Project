@@ -28,6 +28,8 @@ library(parsnip)
 library(vip)
 library(reshape2)
 library(patchwork)
+library(knitr)
+library(png)
 ```
 
 ```{r data_loading}
@@ -84,7 +86,22 @@ data_training %>%
   scale_y_continuous(name = "The number of individuals") +
   labs(title = "Fewer females join the labor force compared to male",
        caption="Data scource: Census.gov") +
-  theme(plot.title = element_text(size=10))
+  theme(plot.title = element_text(size=12))
+
+#save plot 
+ggsave("EDA1",plot = last_plot(),"png",
+       width = 10,
+       height = 10)
+
+#insert graph
+include_graphics("/Users/zhouming/Desktop/Graduate/2022_Fall/ppol670/PPOL670_Final_Project/EDA1.png")
+
+
+
+knitr::include_graphics("EDA1.png")
+
+
+?include_graphics()
 ```
 
 ### 2) The correlation between each variables
@@ -297,7 +314,6 @@ logistic_fit %>%
   vip(num_features = 10, 
       aesthetics = list(color = "dark blue", 
                         fill = "light blue"))
-
 ```
 
 ## LASSO Model 
@@ -557,7 +573,7 @@ vip(ranger_obj,
 ## Compare models
 In terms of model accuracy and sensitivity, Random Forest model dose the best job in predicting individual's labor status. 
 
-Personal income, the work and child total expenses, education attainment, whether the individual had health insurance last year, and the marital status are the most importance variables in predicting individual's labor status. 
+Personal income, the work and child total expenses, education attainment, and the marital status are the most importance variables in predicting individual's labor status. 
 ```{r model_comparison_&_variable_importance_visual, fig.keep='all',fig.width=10, fig.height=10 }
 models <- data.frame(
   models = c("logistic",
@@ -609,21 +625,8 @@ g3 <- ggplot(data = data_training) +
        caption="Data scource: Census.gov") +
   theme(plot.title = element_text(size=10))
 
-#COV and in_labor 
-g4 <- ggplot(data = data_training) +
-  geom_bar(aes(x = factor(COV), fill = in_labor)) + 
-  scale_fill_discrete(name = "Labor Status",
-                   labels = c("Not in labor force", 
-                              "In labor force")) +
-  labs(title = paste0("Positive effects of health",
-  "insurance coverage on labor status"),
-  x = paste0("Whether the individual had",
-  "health insurance coverage last year"),
-  caption="Data scource: Census.gov") +
-  theme(plot.title = element_text(size=10))
-
 #A_MARITL and in_labor 
-g5 <- ggplot(data = data_training) +
+g4 <- ggplot(data = data_training) +
   geom_bar(aes(x = A_MARITL, fill = in_labor)) + 
   scale_fill_discrete(name = "Labor Status",
                    labels = c("Not in labor force", 
@@ -642,9 +645,9 @@ g5 <- ggplot(data = data_training) +
     caption="Data scource: Census.gov") +
   theme(plot.title = element_text(size=10))
 
-(g1 + g2) 
+g1 + g2
 
-(g4 + g5) / g3
+g4 + g3
 ```
 
 # Dimension Reduction
