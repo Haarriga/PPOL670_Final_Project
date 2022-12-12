@@ -15,8 +15,7 @@ We perform supervised machine learning using multiple models (LASSO, Decision Tr
 # Data
 We gathered the variables needed to train the model from the Annual Social and Economic (ASEC) supplement data. The independent variables include individuals’ demographics (e.g., age, education level, marital status, sex, etc.) and other economic status information (e.g., SNAP benefits, EITC benefits, and other social assistance). The Annual Social and Economic (ASEC) Supplement contains the basic monthly demographic and labor force data, plus additional data on work experience, income, noncash benefits, health insurance coverage, and migration. We can access the data through web APIs as the data dictionary linked https://www2.census.gov/programs-surveys/cps/techdocs/cpsmar22.pdf.
 
-```{r set_up}
-# load data
+```{r set_up, include = FALSE}
 library(tidyverse)
 library(lubridate)
 library(dplyr)
@@ -28,6 +27,9 @@ library(ggplot2)
 library(parsnip)
 library(vip)
 library(reshape2)
+```
+
+```{r data_loading}
 data <- read_csv("Data/pppub22.csv")%>%
   select(A_EXPLF,MIG_REG,SPM_NUMKIDS, SPM_ACTC, SPM_BBSUBVAL,
          SPM_FAMTYPE, SPM_CAPHOUSESUB, SPM_CAPWKCCXPNS, SPM_CHILDCAREXPNS,
@@ -64,7 +66,7 @@ data_testing <- testing(x = split_data)
 ## EDA
 ### 1) The labor participation by gender
 After plotting the labor participation by gender, we find that there are relatively smaller proportion of the sample not in labor force. And fewer females join the labor force compared to male. 
-```{r labor_participation_by_gender}
+```{r graph_labor_participation_by_gender, fig.keep='all',fig.width=10, fig.height=10}
 # the labor participation by gender
 data_training %>%
   ggplot(aes(x = in_labor)) +
@@ -75,12 +77,13 @@ data_training %>%
                    labels = c("Not in labor force", "In labor force")) +
   scale_y_continuous(name = "The number of individuals") +
   labs(title = "Fewer females join the labor force compared to male",
-       caption="Data scource: Census.gov")
+       caption="Data scource: Census.gov") +
+  theme(plot.title = element_text(size=10))
 ```
 
 ### 2) The correlation between each variables
 To visualize the correlation between each variables, we create a heat map. The heat map shows the magnitude of the correlation in two dimensions, and the variation in color is designed by intensity. As shown in the heat map, some variables in the data set are highly correlated. For example, PTOTVAL (total person income) and SPM_FEDTAX (Supplemental Poverty Measure unit's Federal tax) are positively correlated, COV (whether individuals have any health insurance coverage last year) and SPM_CAPWKCCXPNS (Supplemental Poverty Measure unit's child care expenses-not capped) are negatively correlated.  
-```{r correlation}
+```{r , fig.keep='all',fig.width=10,fig.height=10}
 library(reshape2)
 library(ggplot2)
 # the correlation between each variables
@@ -118,50 +121,63 @@ ggheatmap <-
   theme_minimal()+ # minimal theme
   theme(axis.text.x = element_text(angle = 90, 
                                    vjust = 1, 
-                                   size = 12, 
-                                   hjust = 1))+
+                                   size = 5, 
+                                   hjust = 1),
+        axis.text.y = element_text(size = 5))+
   coord_fixed()+
   labs(title = "The correlation between variables",
-       caption="Data scource: Census.gov")
+       caption="Data scource: Census.gov",
+       x = "variable name" ,
+       y = "variable name") 
 
-# print the heatmap
+# print the heat map
 print(ggheatmap)
 ```
 
 ### 3) Some variables are highly correlated
 To better visualize the high correlation between variables in the data set, we also use geom_smooth and geom_point. As shown in the graph, educational attainment and total persons income are highly correlated. Individuals with higher education are expected to have higher personal income. 
-```{r highly_correlated}
+```{r variable_correlation, fig.keep='all',fig.width=10, fig.height=10}
 ggplot(data = data_training, 
        aes(x = A_HGA,
            y = PTOTVAL)) +
   geom_point(alpha = 0.1) +
   geom_smooth(method = "auto") +
-  labs(title = "A_HGA & PTOTVAL are highly correlated",
+  labs(title = "Educational attainment & Income are highly correlated",
        x = "Educational attainment",
        y= "total persons income", 
-       caption="Data scource: Census.gov")
+       caption="Data scource: Census.gov") +
+  theme(plot.title = element_text(size=10))
 ```
 
 ### 4) The distribution of variables
 After plotting the distribution of some independent variables in our data set, we find that some variables are highly skewed and clustered around some values. 
-```{r distribution}
+```{r variable_distribution, fig.keep='all',fig.width=10, fig.height=10}
 # the distribution of SPM_ACTC (SPM units Additional Child Tax Credit)
 ggplot(data = data_training, 
        aes(x = SPM_ACTC)) +
-  geom_histogram() +
-  labs(title = "The distribution of SPM units Additional Child Tax Credit is skewed and is clustered around 0",
+  geom_histogram(aes(y=..density..),
+                 color="darkblue", 
+                 fill="light blue") +
+  geom_density(alpha=.2, fill="#FF6666") +
+  scale_x_continuous(limits = c(0,25000))+
+  labs(title = "The distribution of Child Tax Credit is skewed & clustered",
        x = "SPM units Additional Child Tax Credit",
-       y = "the number of individuals",
-       caption="Data scource: Census.gov")
+       y = "density",
+       caption="Data scource: Census.gov")+  
+  theme(plot.title = element_text(size=10))
 
 # the distribution of SPM_CAPWKCCXPNS (SPM unit's capped work and child care expenses)
 ggplot(data = data_training, 
        aes(x = SPM_CAPWKCCXPNS)) +
-  geom_histogram() +
-  scale_x_continuous(limits=c(0,50000,100000))+
-  labs(title = "The distribution of SPM unit's capped work and child care expenses is skewed",
+  geom_histogram(aes(y=..density..),
+                 color="dark blue", 
+                 fill="light blue") +
+  geom_density(alpha=.2, fill="#FF6666") +
+  scale_x_continuous(limits = c(0,25000))+
+  labs(title = "The distribution of work and child care expenses is skewed",
        x = "SPM unit's capped work and child care expenses",
-       caption="Data scource: Census.gov")
+       caption="Data scource: Census.gov") +
+  theme(plot.title = element_text(size=10))
 ```
 
 ## Preprocess
@@ -252,7 +268,10 @@ sensitivity(data = predictions_logistic,
 # variable importance 
 logistic_fit %>%
   extract_fit_parsnip() %>%
-  vip(num_features = 10)
+  vip(num_features = 10, 
+      aesthetics = list(color = "dark blue", 
+                        fill = "light blue"))
+
 ```
 
 ## LASSO Model 
@@ -319,7 +338,9 @@ sensitivity(data = predictions_lasso,
 #variable importance 
 lasso_fit %>%
   extract_fit_parsnip() %>%
-  vip(num_features = 10)
+  vip(num_features = 10,
+      aesthetics = list(color = "dark blue", 
+                        fill = "light blue"))
 ```
 
 ## Compare LASSO and logistic model
@@ -395,7 +416,10 @@ sensitivity(data = predictions_tree,
 #variable importance 
 tree_fit %>%
   extract_fit_parsnip() %>%
-  vip(num_features = 10)
+  vip(num_features = 10,
+      aesthetics = list(color = "dark blue", 
+                        fill = "light blue"))
+
 ```
 
 ## Random Forest 
@@ -457,7 +481,9 @@ sensitivity(data = predictions_rf,
 #variable importance 
 ranger_obj <- pull_workflow_fit(rf_fit)$fit
 vip(ranger_obj,
-    geom = "col")
+    geom = "col",
+    aesthetics = list(color = "dark blue", 
+                      fill = "light blue"))
 ```
 
 ## Compare models 
@@ -840,3 +866,11 @@ predictions_tree_test %>%
   labs(title = "Sensitivity and accuracy are both significantly high in the decision tree model",
        x = "The probability of being predicted not in labor force") 
 ```
+
+# Bibliography
+1. Rebecca Barter, "Tidymodels: tidy machine learning in R", https://www.rebeccabarter.com/blog/2020-03-25_machine_learning/
+2. Max Kuhn, "Using case weights with tidymodels", https://www.tidyverse.org/blog/2022/05/case-weights/
+3. STHDA, http://www.sthda.com/english/wiki/ggplot2-quick-correlation-matrix-heatmap-r-software-and-data-visualization
+4. "Breiman and Cutler's Random Forests for Classification and Regression", https://cran.r-project.org/web/packages/randomForest/randomForest.pdf
+5. Cian White, "Principal Component Analysis in R", https://rstudio-pubs-static.s3.amazonaws.com/585948_abd70a6fc3e24d4fad8944197bc5dd25.html
+6. Rebecca Barter, "Tidymodels: tidy machine learning in R", https://www.rebeccabarter.com/blog/2020-03-25_machine_learning/
