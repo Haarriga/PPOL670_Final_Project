@@ -14,6 +14,7 @@ We perform supervised machine learning using multiple models (LASSO, Decision Tr
 
 # Data
 We gathered the variables needed to train the model from the Annual Social and Economic (ASEC) supplement data. The independent variables include individuals’ demographics (e.g., age, education level, marital status, sex, etc.) and other economic status information (e.g., SNAP benefits, EITC benefits, and other social assistance). The Annual Social and Economic (ASEC) Supplement contains the basic monthly demographic and labor force data, plus additional data on work experience, income, noncash benefits, health insurance coverage, and migration. We can access the data through web APIs as the data dictionary linked https://www2.census.gov/programs-surveys/cps/techdocs/cpsmar22.pdf.
+
 ```{r set_up}
 # load data
 library(tidyverse)
@@ -62,7 +63,7 @@ data_testing <- testing(x = split_data)
 
 ## EDA
 ### 1) The labor participation by gender
-After plotting the labor participation by gender, we find that there are relatively smaller poprotion of the sample not in labor force. And fewer females join the labor force compared to male. 
+After plotting the labor participation by gender, we find that there are relatively smaller proportion of the sample not in labor force. And fewer females join the labor force compared to male. 
 ```{r labor_participation_by_gender}
 # the labor participation by gender
 data_training %>%
@@ -176,6 +177,7 @@ data_training <- data_training %>%
 ```
 
 ### Recipe
+To reduce standard error in the models, we use standardization, removing variables that have large absolute correlations with other variables, and dropping variables with no variance in the pre-process.
 ```{r recipe}
 data_rec <- recipe(in_labor~., data = data_training) %>%
   # center and scale all predictors
@@ -194,6 +196,7 @@ folds <- vfold_cv(data = data_training, v = 10)
 ```
 
 ## Logistic model
+The accuracy and sensitivity of the logitstic model is 0.716 and 0, respectively. The logistic model does not fit well in this case. 
 ```{r logistic}
 # create model
 logistic_mod <- 
@@ -253,6 +256,7 @@ logistic_fit %>%
 ```
 
 ## LASSO Model 
+The accuracy and sensitivity of the LASSO model is 0.929 and 0.850, respectively. 
 ```{r LASSO}
 # create a tuning grid for lasso regularization
 lasso_grid <- grid_regular(penalty(), levels = 50)
@@ -319,7 +323,9 @@ lasso_fit %>%
 ```
 
 ## Compare LASSO and logistic model
-The standard error of the LASSO model's accuracy is much lower than the logistic's, and the mean of LASSO model's accuracy is much higher than the logistic's. LASSO model has higher precision in this case. 
+The standard error of the LASSO model's accuracy is much lower than the logistic's, and the mean of LASSO model's accuracy is much higher than the logistic's. The LASSO model is far better than the logistic model, fitting well in the training data with high accuracy and sensitivity. 
+
+LASSO model has higher precision in this case. 
 
 ```{r compare_LASSO_logistic}
 LASSO_Logistic <- bind_rows(
@@ -332,6 +338,7 @@ LASSO_Logistic
 ```
 
 ## Decision Tree 
+The accuracy and sensitivity of the Decision Tree model is 0.922 and 0.879, respectively. The Decision Tree model fits the training data as well as LASSO model, with slightly higher sensitivity.  
 ```{r decision_tree}
 #create model
 tree_mod <-
@@ -392,6 +399,7 @@ tree_fit %>%
 ```
 
 ## Random Forest 
+The accuracy and sensitivity of the Random Forest model is 0.969 and 0.984, respectively. The Random Forest model fits the training data best among the four models.
 ```{r Random_forest}
 library(randomForest)
 set.seed(20221111)
@@ -532,6 +540,7 @@ folds_pca <- vfold_cv(data = data_training_pca, v = 10)
 ```
 
 ### Recipe
+To reduce standard error in the models, we use standardization and removing variables that have large absolute correlations with other variables in the pre-process.
 ```{r rec_pca}
 #Build a recipe 
 data_rec_pca <- recipe(in_labor~PC1+PC2+PC3+case_wts, 
@@ -542,6 +551,7 @@ data_rec_pca <- recipe(in_labor~PC1+PC2+PC3+case_wts,
 ```
 
 ## LASSO Model with PCA
+The accuracy and sensitivity of the LASSO model with PCA is 0.785 and 0.782, respectively, which fit the training data worse than the LASSO model without PCA.
 ```{r lasso_pca}
 # create a tuning grid for lasso regularization,
 lasso_grid_pca <- grid_regular(penalty(), levels = 50)
@@ -600,6 +610,7 @@ sensitivity(data = predictions_lasso_pca,
 ```
 
 ## Decision tree with PCA
+The accuracy and sensitivity of the Decision Tree model with PCA is 0.820 and 0.743, respectively, which fit the training data worse than the Decision Tree model without PCA.
 ```{r decision_tree_pca}
 # create model
 tree_mod_pca <-
@@ -658,6 +669,7 @@ rpart.plot::rpart.plot(x = tree_fit_pca$fit$fit$fit)
 ```
 
 ## Random Forest with PCA
+The accuracy and sensitivity of the Random Forest model with PCA is 0.961 and 0.999, respectively, which fit the training data better than the Random Forest model without PCA.
 ```{r rf_pca}
 set.seed(20221111)
 # create model
@@ -712,6 +724,7 @@ sensitivity(data = predictions_rf_pca,
 ```
 
 # Compare models
+The accuracy and sensitivity of the Random Forest model with PCA is highest among the seven models, as shown in the plot. We choose it as our final model to fit the testing data. 
 ```{r compare_models}
 models_all <- data.frame(
   models = c("Logistic",
@@ -753,6 +766,7 @@ models_all %>%
 ```
 
 ## Final model 1: Random forest with PCA 
+The Random Forest Model fits testing data well, as shown in the density plot. The accuracy and sensitivity of the Random Forest model with PCA is relatively high in the testing data, with 0.866 and 0.810 respectively. 
 ```{r final_model_1}
 # fit the model to the testing data and make predictions
 predictions_rf_test_pca <- bind_cols(
