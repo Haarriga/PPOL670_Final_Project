@@ -84,8 +84,7 @@ data_training %>%
                               "In labor force")) +
   scale_y_continuous(name = "The number of individuals") +
   labs(title = "Fewer females join the labor force compared to male",
-       caption="Data scource: Census.gov") +
-  theme(plot.title = element_text(size=10))
+       caption="Data scource: Census.gov") 
 ```
 
 ### 2) The correlation between each variables
@@ -153,8 +152,7 @@ ggplot(data = data_training,
   " & Income are highly correlated"),
   x = "Educational attainment",
   y= "total persons income ($ Thousand)", 
-  caption="Data scource: Census.gov") +
-  theme(plot.title = element_text(size=10))
+  caption="Data scource: Census.gov") 
 ```
 
 ### 4) The distribution of variables
@@ -172,8 +170,7 @@ ggplot(data = data_training,
   "Child Tax Credit is skewed & clustered"), 
   x = "SPM units Additional Child Tax Credit",
   y = "density",
-  caption="Data scource: Census.gov")+  
-  theme(plot.title = element_text(size=10))
+  caption="Data scource: Census.gov")
 
 # the distribution of SPM_CAPWKCCXPNS 
 #(SPM unit's capped work and child care expenses)
@@ -187,12 +184,11 @@ ggplot(data = data_training,
   labs(title = paste0("The distribution of",
   " work and child care expenses is skewed"), 
   x = "SPM unit's capped work and child care expenses ($)",
-  caption="Data scource: Census.gov") +
-  theme(plot.title = element_text(size=10))
+  caption="Data scource: Census.gov") 
 ```
 
 ## Preprocess
-### Add weight
+### Add importance weight
 Since we would like to encourage models to more accurately predict the individuals who are not in the labor force, we can give these observations a much larger weight in the analysis. 
 ```{r weight}
 data_training %>% count(in_labor)
@@ -228,15 +224,25 @@ folds <- vfold_cv(data = data_training, v = 10)
 The accuracy and sensitivity of the logitstic model is 0.716 and 0, respectively. The logistic model does not fit well in this case. 
 
 In the logistic model, the most important variables are: 
+
 *1)* EARNER: Whether the individual has earned in the household with $1 or more in wages and salaries.
+
 *2)* PEARNVAL:Total persons earnings ($). 
+
 *3)* SPM_CAPWKCCXPNS: SPM unit's capped work and child care expenses ($). 
+
 *4)* DIS_HP: Whether the individual has a health problem or a disability which prevents work or which limits the kind or amount of work. 
+
 *5)* AGE1: Recoded age, (0 = Not in universe, 1 = 15 years, 2 = 16 and 17 years, 3 = 18 and 19 years, 4 = 20 and 21 years, 5 = 22 to 24 years, 6 = 25 to 29 years, 7 = 30 to 34 years, 8 = 35 to 39 years, 9 = 40 to 44 years, 10 = 45 to 49 years, 11 = 50 to 54 years, 12 = 55 to 59 years, 13 = 60 to 61 years, 14 = 62 to 64 years, 15 = 65 to 69 years, 16 = 70 to 74 years, 17 = 75 years and over.)
+
 *6)* SPM_FEDTAX: SPM unit's Federal tax ($).
+
 *7)* SPM_FAMTYPE: SPM unit's family type. 
+
 *8)* A_HGA: Educational attainment. 
+
 *9)* DIV_YN: Whether the individual received dividends. 
+
 *10)* COV: Whether the individual had any health insurance coverage last year. 
 
 ```{r logistic}
@@ -304,15 +310,25 @@ logistic_fit %>%
 The accuracy and sensitivity of the LASSO model is 0.929 and 0.850, respectively. 
 
 In the LASSO model, the most important variables are (the same as those in the logistic model): 
+
 *1)* EARNER: Whether the individual has earned in the household with $1 or more in wages and salaries.
+
 *2)* PEARNVAL:Total persons earnings ($). 
+
 *3)* SPM_CAPWKCCXPNS: SPM unit's capped work and child care expenses ($). 
+
 *4)* DIS_HP: Whether the individual has a health problem or a disability which prevents work or which limits the kind or amount of work. 
+
 *5)* AGE1: Recoded age, (0 = Not in universe, 1 = 15 years, 2 = 16 and 17 years, 3 = 18 and 19 years, 4 = 20 and 21 years, 5 = 22 to 24 years, 6 = 25 to 29 years, 7 = 30 to 34 years, 8 = 35 to 39 years, 9 = 40 to 44 years, 10 = 45 to 49 years, 11 = 50 to 54 years, 12 = 55 to 59 years, 13 = 60 to 61 years, 14 = 62 to 64 years, 15 = 65 to 69 years, 16 = 70 to 74 years, 17 = 75 years and over.)
+
 *6)* SPM_FEDTAX: SPM unit's Federal tax ($).
+
 *7)* SPM_FAMTYPE: SPM unit's family type. 
+
 *8)* A_HGA: Educational attainment. 
+
 *9)* DIV_YN: Whether the individual received dividends. 
+
 *10)* COV: Whether the individual had any health insurance coverage last year.
 
 ```{r LASSO}
@@ -407,11 +423,17 @@ LASSO_Logistic %>%
 The accuracy and sensitivity of the Decision Tree model is 0.922 and 0.879, respectively. The Decision Tree model fits the training data as well as LASSO model, with slightly higher sensitivity. 
 
 In the Decision Tree model, the most important variables are: 
+
 *1)* PEARNVAL:Total persons earnings ($). 
+
 *2)* EARNER: Whether the individual has earned in the household with $1 or more in wages and salaries.
+
 *3)* AGI: Federal adjusted gross income ($).
+
 *4)* SPM_CAPWKCCXPNS: SPM unit's capped work and child care expenses ($). 
+
 *5)* A_HGA: Educational attainment. 
+
 *6)* AGE1: Recoded age, (0 = Not in universe, 1 = 15 years, 2 = 16 and 17 years, 3 = 18 and 19 years, 4 = 20 and 21 years, 5 = 22 to 24 years, 6 = 25 to 29 years, 7 = 30 to 34 years, 8 = 35 to 39 years, 9 = 40 to 44 years, 10 = 45 to 49 years, 11 = 50 to 54 years, 12 = 55 to 59 years, 13 = 60 to 61 years, 14 = 62 to 64 years, 15 = 65 to 69 years, 16 = 70 to 74 years, 17 = 75 years and over.)
 
 ```{r decision_tree}
@@ -480,16 +502,25 @@ tree_fit %>%
 The accuracy and sensitivity of the Random Forest model is 0.969 and 0.984, respectively. The Random Forest model fits the training data best among the four models.
 
 In the Random Forest model, the most important variables are: 
+
 *1)* PEARNVAL:Total persons earnings ($). 
+
 *2)* EARNER: Whether the individual has earned in the household with $1 or more in wages and salaries.
+
 *3)* AGI: Federal adjusted gross income ($).
+
 *4)* SPM_CAPWKCCXPNS: SPM unit's capped work and child care expenses ($). 
- DIS_HP: Whether the individual has a health problem or a disability which prevents work or which limits the kind or amount of work. 
+
 *5)* SPM_FEDTAX: SPM unit's Federal tax ($).
+
 *6)* AGE1: Recoded age, (0 = Not in universe, 1 = 15 years, 2 = 16 and 17 years, 3 = 18 and 19 years, 4 = 20 and 21 years, 5 = 22 to 24 years, 6 = 25 to 29 years, 7 = 30 to 34 years, 8 = 35 to 39 years, 9 = 40 to 44 years, 10 = 45 to 49 years, 11 = 50 to 54 years, 12 = 55 to 59 years, 13 = 60 to 61 years, 14 = 62 to 64 years, 15 = 65 to 69 years, 16 = 70 to 74 years, 17 = 75 years and over.)
+
 *7)* SPM_GEOADJ: SPM unit's geographic food, shelter, clothing and utility (FSCU) adjustment.
+
 *8)* A_HGA: Educational attainment. 
+
 *9)* RINT_VAL1: The interest income amount (retirement source with the value of 1). 
+
 *10)* A_MARITL: The individual's marital status. 
 
 ```{r Random_forest}
@@ -557,9 +588,13 @@ vip(ranger_obj,
 In terms of model accuracy and sensitivity, Random Forest model dose the best job in predicting individual's labor status. 
 
 Personal income, the work and child total expenses, education attainment, and the marital status are the most importance variables in predicting individual's labor status. After plotting each variable with labor status, we find:
+
 *1)* Individuals with higher income are more likely to be in labor force. 
-*2)* Individuals with higher child care expenses are more likely to be in labor force. 
+
+*2)* Individuals with higher child care expenses are more likely to be in labor force.
+
 *3)* Individuals with higher education attainment are more likely to be in labor force. 
+
 *4)* Individuals with difference marital status have statistical significance in labor force participation. 
 ```{r model_comparison_&_variable_importance_visual, fig.keep='all',fig.width=10, fig.height=10 }
 models <- data.frame(
@@ -635,7 +670,7 @@ g4 <- ggplot(data = data_training) +
 
 g1 + g2
 
-g4 + g3
+g4 / g3
 ```
 
 # Dimension Reduction
@@ -645,16 +680,15 @@ data1 <- data %>%
   select(-in_labor)
 # create PCA
 set.seed(20221111)
-pca_1 <- prcomp(data1, scale = TRUE)
+pca_screeplot <- prcomp(data1, scale = TRUE)
 # create scree plot to decide how many pc to retain 
-screeplot(pca_1, type="lines")
+screeplot(pca_screeplot, type="lines")
 ```
 The scree plot occurs at component 4, which is the “elbow” of the scree plot. Therefore, it cound be argued based on the basis of the scree plot that **the first three components** should be retained.
 
 ## Dimension Reducation with PCA
 ```{r dimension_reduction}
-# create a recipe with no outcome variable 
-# and all predictors
+# create a recipe with no outcome variable and all predictors
 preprocess_rec <- recipe(~ ., data = data1) %>%
   step_zv(all_numeric_predictors()) %>%
   step_nzv(all_numeric_predictors()) %>%
@@ -690,7 +724,7 @@ data_training_pca <- training(x = split_pca)
 data_testing_pca <- testing(x = split_pca)
 ```
 
-### Add weight
+### Add importance weight
 Since we would like to encourage models to more accurately predict the individuals who are not in the labor force, we can give these samples a much larger weight in the analysis. 
 ```{r weight_pca}
 data_training_pca %>% count(in_labor)
@@ -703,8 +737,7 @@ data_training_pca <- data_training_pca %>%
 
 ### Cross validation
 ```{r cv_pca}
-folds_pca <- vfold_cv(data = data_training_pca,
-                      v = 10)
+folds_pca <- vfold_cv(data = data_training_pca,v = 10)
 ```
 
 ### Recipe
