@@ -41,7 +41,7 @@ data <- read_csv("Data/pppub22.csv")%>%
          NOW_DEPNONM,NOW_MRKUN, MRKUN, NOW_MRK, MRK, NOW_DIR,
          OWNDIR, COV, COV_CYR, AGI, EIT_CRED, CHSP_VAL, 
          CSP_VAL, PAW_VAL, RINT_SC2, RINT_VAL1, PTOTVAL, 
-         DIS_HP,DIS_CS, DIS_CS, DIS_YN, DIV_YN, DSAB_VAL, 
+         DIS_HP,DIS_CS, DIS_YN, DIV_YN, DSAB_VAL, 
          PEARNVAL, EARNER, LKWEEKS, LOSEWKS,
          AGE1,A_SEX) %>%
   # exclude observations with missing answers
