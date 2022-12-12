@@ -27,6 +27,7 @@ library(ggplot2)
 library(parsnip)
 library(vip)
 library(reshape2)
+library(patchwork)
 ```
 
 ```{r data_loading}
@@ -535,8 +536,11 @@ vip(ranger_obj,
                       fill = "light blue"))
 ```
 
-## Compare models 
-```{r}
+## Compare models
+In terms of model accuracy and sensitivity, Random Forest model dose the best job in predicting individual's labor status. 
+
+Personal income, the work and child total expenses, education attainment, whether the individual had health insurance last year, and the marital status are the most importance variables in predicting individual's labor status. 
+```{r model_comparison_&_variable_importance_visual, fig.keep='all',fig.width=10, fig.height=10 }
 models <- data.frame(
   models = c("logistic","LASSO","Decision_Tree","Random_Forest"),
   accuracy = c(0.716,0.929,0.922,0.969),
@@ -544,6 +548,77 @@ models <- data.frame(
   )
 
 models
+
+# PEARNVAL and in_labor 
+g1 <- ggplot(data = data_training) +
+  geom_point(aes(x = in_labor, y = PEARNVAL), 
+             alpha = 0.2) +
+  scale_x_discrete(name ="Labor Status",
+                  labels = c("Not in labor force", 
+                              "In labor force")) +
+  labs(title = "Positive effects of income on labor status",
+       x = "labor status",
+       y= "total persons income ($ Thousand)", 
+       caption="Data scource: Census.gov") +
+  theme(plot.title = element_text(size=10))
+
+#SPM_CAPWKCCXPNS and in_labor 
+g2 <- ggplot(data = data_training) +
+  geom_point(aes(x = in_labor, y = SPM_CAPWKCCXPNS),
+             alpha = 0.2) +
+  scale_x_discrete(name ="Labor Status",
+                  labels = c("Not in labor force", 
+                              "In labor force")) +
+  labs(title = "Positive effects of work and child care expenses on labor status",
+       x = "labor status",
+       y= "SPM unit's capped work and child care expenses ($ Thousand)", 
+       caption="Data scource: Census.gov") +
+  theme(plot.title = element_text(size=10))
+
+#A_HGA and in_labor 
+g3 <- ggplot(data = data_training) +
+  geom_bar(aes(x = A_HGA, fill = in_labor)) + 
+  scale_fill_discrete(name ="labor status",
+                   labels = c("Not in labor force", "In labor force")) +
+  labs(title = "Positive effects of education attainment on labor status",
+       x = "Education attainment", 
+       caption="Data scource: Census.gov") +
+  theme(plot.title = element_text(size=10))
+
+#COV and in_labor 
+g4 <- ggplot(data = data_training) +
+  geom_bar(aes(x = factor(COV), fill = in_labor)) + 
+  scale_fill_discrete(name = "Labor Status",
+                   labels = c("Not in labor force", 
+                              "In labor force")) +
+  labs(title = "Positive effects of health insurance coverage on labor status",
+       x = "Whether the individual had health insurance coverage last year",
+       caption="Data scource: Census.gov") +
+  theme(plot.title = element_text(size=10))
+
+#A_MARITL and in_labor 
+g5 <- ggplot(data = data_training) +
+  geom_bar(aes(x = A_MARITL, fill = in_labor)) + 
+  scale_fill_discrete(name = "Labor Status",
+                   labels = c("Not in labor force", 
+                              "In labor force")) +
+  scale_x_discrete(name = "The individual's marital status",
+                   limits = c("Married_civilian",
+                              "Married_AF",
+                              "Married_absent",
+                              "Widowed",
+                              "Divorced",
+                              "Separated",
+                              "Never married")) +
+  theme(axis.text.x = element_text(angle = 30)) + 
+  labs(
+    title = "Effects of marital status on labor status",
+    caption="Data scource: Census.gov") +
+  theme(plot.title = element_text(size=10))
+
+(g1 + g2) 
+
+(g4 + g5) / g3
 ```
 
 # Dimension Reduction
@@ -826,8 +901,8 @@ models_all %>%
                 y = sensitivity, 
                 label = models),
             check_overlap = TRUE,
-            nudge_x = -0.005,
-            nudge_y = -0.008,
+            nudge_x = -0.008,
+            nudge_y = -0.01,
             size = 3,
             angle = 45,
             fontface = "bold") +
