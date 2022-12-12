@@ -28,8 +28,7 @@ library(parsnip)
 library(vip)
 library(reshape2)
 library(patchwork)
-library(knitr)
-library(png)
+library(randomForest)
 ```
 
 ```{r data_loading}
@@ -86,22 +85,7 @@ data_training %>%
   scale_y_continuous(name = "The number of individuals") +
   labs(title = "Fewer females join the labor force compared to male",
        caption="Data scource: Census.gov") +
-  theme(plot.title = element_text(size=12))
-
-#save plot 
-ggsave("EDA1",plot = last_plot(),"png",
-       width = 10,
-       height = 10)
-
-#insert graph
-include_graphics("/Users/zhouming/Desktop/Graduate/2022_Fall/ppol670/PPOL670_Final_Project/EDA1.png")
-
-
-
-knitr::include_graphics("EDA1.png")
-
-
-?include_graphics()
+  theme(plot.title = element_text(size=10))
 ```
 
 ### 2) The correlation between each variables
@@ -166,7 +150,7 @@ ggplot(data = data_training,
   geom_point(alpha = 0.1) +
   geom_smooth(method = "auto") +
   labs(title = paste0("Educational attainment",
-  "& Income are highly correlated"),
+  " & Income are highly correlated"),
   x = "Educational attainment",
   y= "total persons income ($ Thousand)", 
   caption="Data scource: Census.gov") +
@@ -201,7 +185,7 @@ ggplot(data = data_training,
   geom_density(alpha=.2, fill="#FF6666") +
   scale_x_continuous(limits = c(0,20000))+
   labs(title = paste0("The distribution of",
-  "work and child care expenses is skewed"), 
+  " work and child care expenses is skewed"), 
   x = "SPM unit's capped work and child care expenses ($)",
   caption="Data scource: Census.gov") +
   theme(plot.title = element_text(size=10))
@@ -413,10 +397,10 @@ LASSO_Logistic <- bind_rows(
   `LASSO` = show_best(lasso_cv, 
                       metric = "accuracy", 
                       n = 1),
-  .id = "model"
-)
+  .id = "model")
 
-LASSO_Logistic
+LASSO_Logistic %>%
+  select(model,mean,std_err)
 ```
 
 ## Decision Tree 
@@ -509,7 +493,6 @@ In the Random Forest model, the most important variables are:
 *10)* A_MARITL: The individual's marital status. 
 
 ```{r Random_forest}
-library(randomForest)
 set.seed(20221111)
 
 #create model
@@ -570,10 +553,14 @@ vip(ranger_obj,
                       fill = "light blue"))
 ```
 
-## Compare models
+## Summary - Model without PCA 
 In terms of model accuracy and sensitivity, Random Forest model dose the best job in predicting individual's labor status. 
 
-Personal income, the work and child total expenses, education attainment, and the marital status are the most importance variables in predicting individual's labor status. 
+Personal income, the work and child total expenses, education attainment, and the marital status are the most importance variables in predicting individual's labor status. After plotting each variable with labor status, we find:
+*1)* Individuals with higher income are more likely to be in labor force. 
+*2)* Individuals with higher child care expenses are more likely to be in labor force. 
+*3)* Individuals with higher education attainment are more likely to be in labor force. 
+*4)* Individuals with difference marital status have statistical significance in labor force participation. 
 ```{r model_comparison_&_variable_importance_visual, fig.keep='all',fig.width=10, fig.height=10 }
 models <- data.frame(
   models = c("logistic",
@@ -607,11 +594,12 @@ g2 <- ggplot(data = data_training) +
                   labels = c("Not in labor force", 
                               "In labor force")) +
   labs(title = paste0("Positive effects",
-  "of work and child care expenses on labor status"),
+  " of work and child care expenses on labor status"),
   x = "labor status",
-  y= "SPM unit's capped work and child care expenses ($ Thousand)", 
+  y= paste0("SPM unit's capped work",
+  "and child care expenses ($ Thousand)"),  
   caption="Data scource: Census.gov") +
-  theme(plot.title = element_text(size=10))
+  theme(plot.title = element_text(size=10)) 
 
 #A_HGA and in_labor 
 g3 <- ggplot(data = data_training) +
@@ -678,9 +666,6 @@ preprocess_rec <- recipe(~ ., data = data1) %>%
   # run prep to prepare recipe
   prep()
 
-# obtain summary metrics (use number = 3)
-tidy(preprocess_rec, number = 3, type = "variance")
-
 # apply recipe to data
 processed_data <- preprocess_rec %>%
   bake(new_data = data1)
@@ -699,7 +684,8 @@ data_pca <- rename(data_pca,
 ## Preprocess
 ```{r split_data_pca}
 set.seed(20221111)
-split_pca <- initial_split(data = data_pca, prop = 0.8)
+split_pca <- initial_split(data = data_pca, 
+                           prop = 0.8)
 data_training_pca <- training(x = split_pca)
 data_testing_pca <- testing(x = split_pca)
 ```
@@ -717,7 +703,8 @@ data_training_pca <- data_training_pca %>%
 
 ### Cross validation
 ```{r cv_pca}
-folds_pca <- vfold_cv(data = data_training_pca, v = 10)
+folds_pca <- vfold_cv(data = data_training_pca,
+                      v = 10)
 ```
 
 ### Recipe
@@ -736,7 +723,8 @@ data_rec_pca <- recipe(
 The accuracy and sensitivity of the LASSO model with PCA is 0.785 and 0.782, respectively, which fit the training data worse than the LASSO model without PCA.
 ```{r lasso_pca}
 # create a tuning grid for lasso regularization,
-lasso_grid_pca <- grid_regular(penalty(), levels = 50)
+lasso_grid_pca <- grid_regular(penalty(), 
+                               levels = 50)
 
 # create a logistic_regression model with tuning
 lasso_mod_pca <- logistic_reg(penalty = tune(), 
@@ -774,7 +762,8 @@ predictions_lasso_pca  <- bind_cols(
   predict(object = lasso_fit_pca, 
           new_data = data_training_pca),
   predict(object = lasso_fit_pca, 
-          new_data = data_training_pca, type = "prob"))
+          new_data = data_training_pca, 
+          type = "prob"))
 
 # generate confusion matrix 
 cm_lasso_pca <- conf_mat(
@@ -847,9 +836,6 @@ accuracy(data = predictions_tree_pca,
 sensitivity(data = predictions_tree_pca,
          truth = in_labor,
          estimate = .pred_class)
-
-# create decision tree graph 
-rpart.plot::rpart.plot(x = tree_fit_pca$fit$fit$fit)
 ```
 
 ## Random Forest with PCA
@@ -890,7 +876,8 @@ predictions_rf_pca  <- bind_cols(
   predict(object = rf_fit_pca, 
           new_data = data_training_pca),
   predict(object = rf_fit_pca, 
-          new_data = data_training_pca, type = "prob"))
+          new_data = data_training_pca, 
+          type = "prob"))
 
 # generate confusion matrix 
 cm_rf_pca <- conf_mat(data = predictions_rf_pca,
@@ -906,10 +893,24 @@ sensitivity(data = predictions_rf_pca,
          truth = in_labor,
          estimate = .pred_class)
 ```
+## Summary - Model with PCA 
+In terms of model accuracy and sensitivity, Random Forest model with PCA dose the best job in predicting individual's labor status. 
 
-# Compare models
-The accuracy and sensitivity of the Random Forest model with PCA is highest among the seven models, as shown in the plot. We choose it as our final model to fit the testing data. 
-```{r compare_models}
+```{r compare_models_with_PCA}
+models_pca <- data.frame(
+  models = c("LASSO",
+             "Decision_Tree",
+             "Random_Forest"),
+  accuracy = c(0.785,0.820,0.961),
+  sensitivity = c(0.782,0.743,0.999)
+  )
+
+models_pca
+```
+
+# Final model: Decision Tree and Random Forest with PCA
+The accuracy and sensitivity of the Random Forest model with PCA is highest among the seven models and Decision Tree model shows relative high sensitivity among models without PCA, as shown in the plot. We choose one model with PCA (Random Forest) and one without PCA (Decision Tree) as our final models to fit the testing data. 
+```{r compare_models, fig.keep='all',fig.width=10, fig.height=10}
 models_all <- data.frame(
   models = c("Logistic",
              "LASSO",
@@ -935,7 +936,7 @@ models_all %>%
                 y = sensitivity, 
                 label = models),
             check_overlap = TRUE,
-            nudge_x = -0.008,
+            nudge_x = -0.007,
             nudge_y = -0.01,
             size = 3,
             angle = 45,
@@ -946,7 +947,9 @@ models_all %>%
              aes(x = accuracy, y = sensitivity),
              color = "red",
              size = 3) +
-  labs(title = "Decision tree and random forest with PCA have relatively high accuracy and sensitivity")
+  labs(title =
+         paste0("Decision tree and random forest with PCA",
+                " have relatively high accuracy and sensitivity"))
 ```
 
 ## Final model 1: Random forest with PCA 
@@ -976,7 +979,8 @@ sensitivity(data = predictions_rf_test_pca,
          truth = in_labor,
          estimate = .pred_class)
 
-#plot distributions of the predicted probability distributions for each class 
+#plot distributions of the predicted probability 
+#distributions for each class 
 predictions_rf_test_pca %>%
   ggplot() +
   geom_density(aes(x = .pred_0, fill = in_labor), 
@@ -984,8 +988,10 @@ predictions_rf_test_pca %>%
   scale_fill_discrete(name = "Whether in labor force",
                       labels = c("not in labor force",
                                  "in labor force"))+
-  labs(title = "Sensitivity is high in the model of random forest with PCA",
-       x = "The probability of being predicted not in labor force") 
+  labs(title = paste0("Sensitivity is high in the model",
+  " of random forest with PCA"), 
+       x = paste0("The probability of",
+       " being predicted not in labor force"))
 ```
 
 ## Final model 2: Decision tree 
@@ -1021,9 +1027,16 @@ predictions_tree_test %>%
   scale_fill_discrete(name = "Whether in labor force",
                       labels = c("not in labor force",
                                  "in labor force"))+
-  labs(title = "Sensitivity and accuracy are both significantly high in the decision tree model",
-       x = "The probability of being predicted not in labor force") 
+  labs(title = paste0("Sensitivity and accuracy",
+  " are both significantly high in the decision tree model"), 
+       x = paste0("The probability of",
+       "being predicted not in labor force"))
 ```
+
+# Limitations
+The independent variables in our supervised modeling are manually selected by us, focusing on demographic and basic economic characteristics. If technically permitted, training a model using all of the variables in our data set may result in better performance.
+We choose Random Forest as our final model. We generate only 100 trees, while 1000 trees is commonly recommended to generate an accurate model. Although our Random Forest model with PCA reaches an accuracy of 0.999 when fitting to the training data, its accuracy drops when fitting to the testing data. A model with a larger number of trees may be able to do a better job.
+Both Random Forest models (with and without PCA) reach an accuracy of nearly 1 during training. However, the performance of both models drops when fitting to the testing data, which raises our concerns about potential over-fitting problem.
 
 # Bibliography
 1. Rebecca Barter, "Tidymodels: tidy machine learning in R", https://www.rebeccabarter.com/blog/2020-03-25_machine_learning/
