@@ -1,15 +1,19 @@
 # PPOL670 Final Project
 ## Ming & Huixin
 
+Repository: https://github.com/Haarriga/PPOL670_Final_Project.git
+Pages: https://haarriga.github.io/PPOL670_Final_Project/
+
 # Data Analysis Project
-The objective of this project is to demonstrate an analysis relevant to labor force participation using the tools learned in this course. We would like to build the predictive model to predict individual's labor status (whether the individual is in labor force). 
+The objective of this project is to demonstrate an analysis relevant to labor force participation using the tools learned in this course. We would like to build the predictive model to predict individual's labor status (whether the individual is in labor force) and contribute to the development of supporting programs to provide job training and economic support programs for the individuals out of labor force. 
 
 ## Data chosen 
 The data sets we find are Annual Social and Economic (ASEC) Supplement. It provides the usual monthly labor force data, but in addition, provides supplemental data on work experience, income, non-cash benefits, and migration. Comprehensive work experience information is given on the employment status, occupation, and industry of persons 15 years old and over.
+We can access the data through web APIs as the data dictionary linked https://www2.census.gov/programs-surveys/cps/techdocs/cpsmar22.pdf.
 
 ## Variable Inclusion and Definition 
 ### Dependent Variable: Binary variable - labor status
-Our primary dependent variable is in_labor, which is re-coded abased on A_EXPLF, with values of 0 and 1. If the individual is in labor force, in_labor equals 1, otherwise it equals 0.
+Our primary dependent variable is in_labor, which is re-coded based on A_EXPLF, with values of 0 and 1. If the individual is in labor force, in_labor equals 1, otherwise it equals 0.
 
 In this case, we define whether the individual is in labor force by the following criteria. 
 **Labor force **
@@ -70,8 +74,8 @@ The individual's sex is coded as a binary, with the value of 1 representing male
 # Methods (choose one or more)
 The tools we choose to meaningfully inform the policy debate around the issue are supervised machine learning.
 ## Supervised machine learning
-We aim to use individuals' social and economic characteristics (e.g. gender, age, education, social assistance, SNAP benefits, etc.) to predict individual's employment status. 
-
-
+We aim to use individuals' demographic characteristics (e.g. gender, age, education, marital status, etc.)and basic economic characteristics (e.g. SNAP benefits, EITC receipts, etc.) to predict individual's labor status.
+We first performed supervised machine learning without PCA. The four models we trained were logistic model, LASSO model, Decision Tree and Random Forest. As logistic model performed significantly worse compared to LASSO model, we did not include it in the later modeling with PCA. The Random Forest model performed the best in both accuracy and sensitivity despite the fact that we generated relatively few trees.
 
 ## Principal Component Analysis 
+After conducting explanatory analysis, we found that some predictors in the data are correlated. To reduce the number of variables and multicollinearity in a data set while maintain the statistical properties of the data, we utilize Principal Component Analysis to transform potentially linearly correlated variables into a set of linearly uncorrelated variables and apply supervised machine learning in the reshaped data set. 
