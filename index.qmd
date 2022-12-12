@@ -33,12 +33,15 @@ library(patchwork)
 ```{r data_loading}
 data <- read_csv("Data/pppub22.csv")%>%
   select(A_EXPLF,MIG_REG,SPM_NUMKIDS, SPM_ACTC, SPM_BBSUBVAL,
-         SPM_FAMTYPE, SPM_CAPHOUSESUB, SPM_CAPWKCCXPNS, SPM_CHILDCAREXPNS,
-         A_HGA, SPM_CHILDSUPPD, SPM_EITC, A_MARITL, HEA, SPM_FEDTAX, SPM_GEOADJ,
-         SPM_ENGVAL, PRDTRACE, PHIP_VAL, MCAID, NOW_MCAID, NOW_DEPNONM,
-         NOW_MRKUN, MRKUN, NOW_MRK, MRK, NOW_DIR, OWNDIR, COV, COV_CYR, AGI, 
-         EIT_CRED, CHSP_VAL, CSP_VAL, PAW_VAL, RINT_SC2, RINT_VAL1, PTOTVAL, DIS_HP,
-         DIS_CS, DIS_CS, DIS_YN, DIV_YN, DSAB_VAL, PEARNVAL, EARNER, LKWEEKS, LOSEWKS,
+         SPM_FAMTYPE, SPM_CAPHOUSESUB, SPM_CAPWKCCXPNS, 
+         SPM_CHILDCAREXPNS,A_HGA, SPM_CHILDSUPPD, 
+         SPM_EITC, A_MARITL, HEA, SPM_FEDTAX, SPM_GEOADJ,
+         SPM_ENGVAL, PRDTRACE, PHIP_VAL, MCAID, NOW_MCAID, 
+         NOW_DEPNONM,NOW_MRKUN, MRKUN, NOW_MRK, MRK, NOW_DIR,
+         OWNDIR, COV, COV_CYR, AGI, EIT_CRED, CHSP_VAL, 
+         CSP_VAL, PAW_VAL, RINT_SC2, RINT_VAL1, PTOTVAL, 
+         DIS_HP,DIS_CS, DIS_CS, DIS_YN, DIV_YN, DSAB_VAL, 
+         PEARNVAL, EARNER, LKWEEKS, LOSEWKS,
          AGE1,A_SEX) %>%
   # exclude observations with missing answers
   filter(complete.cases(.)) %>%
@@ -73,9 +76,11 @@ data_training %>%
   ggplot(aes(x = in_labor)) +
   geom_bar(aes(fill = factor(A_SEX)), position = "dodge") +
   scale_fill_discrete(name = "Sex",
-                      labels = c("Male", "Female")) +
+                      labels = c("Male", 
+                                 "Female")) +
   scale_x_discrete(name = "Labor Status",
-                   labels = c("Not in labor force", "In labor force")) +
+                   labels = c("Not in labor force", 
+                              "In labor force")) +
   scale_y_continuous(name = "The number of individuals") +
   labs(title = "Fewer females join the labor force compared to male",
        caption="Data scource: Census.gov") +
@@ -143,10 +148,11 @@ ggplot(data = data_training,
            y = PTOTVAL/1000)) +
   geom_point(alpha = 0.1) +
   geom_smooth(method = "auto") +
-  labs(title = "Educational attainment & Income are highly correlated",
-       x = "Educational attainment",
-       y= "total persons income ($ Thousand)", 
-       caption="Data scource: Census.gov") +
+  labs(title = paste0("Educational attainment",
+  "& Income are highly correlated"),
+  x = "Educational attainment",
+  y= "total persons income ($ Thousand)", 
+  caption="Data scource: Census.gov") +
   theme(plot.title = element_text(size=10))
 ```
 
@@ -161,13 +167,15 @@ ggplot(data = data_training,
                  fill="light blue") +
   geom_density(alpha=.2, fill="#FF6666") +
   scale_x_continuous(limits = c(0,20000))+
-  labs(title = "The distribution of Child Tax Credit is skewed & clustered",
-       x = "SPM units Additional Child Tax Credit",
-       y = "density",
-       caption="Data scource: Census.gov")+  
+  labs(title = paste0("The distribution of ",
+  "Child Tax Credit is skewed & clustered"), 
+  x = "SPM units Additional Child Tax Credit",
+  y = "density",
+  caption="Data scource: Census.gov")+  
   theme(plot.title = element_text(size=10))
 
-# the distribution of SPM_CAPWKCCXPNS (SPM unit's capped work and child care expenses)
+# the distribution of SPM_CAPWKCCXPNS 
+#(SPM unit's capped work and child care expenses)
 ggplot(data = data_training, 
        aes(x = SPM_CAPWKCCXPNS)) +
   geom_histogram(aes(y=..density..),
@@ -175,9 +183,10 @@ ggplot(data = data_training,
                  fill="light blue") +
   geom_density(alpha=.2, fill="#FF6666") +
   scale_x_continuous(limits = c(0,20000))+
-  labs(title = "The distribution of work and child care expenses is skewed",
-       x = "SPM unit's capped work and child care expenses ($)",
-       caption="Data scource: Census.gov") +
+  labs(title = paste0("The distribution of",
+  "work and child care expenses is skewed"), 
+  x = "SPM unit's capped work and child care expenses ($)",
+  caption="Data scource: Census.gov") +
   theme(plot.title = element_text(size=10))
 ```
 
@@ -204,7 +213,9 @@ data_rec <- recipe(in_labor~., data = data_training) %>%
   step_nzv(all_numeric_predictors()) %>%
   step_zv(all_numeric_predictors())
 # see the engineered training data
-bake(prep(data_rec, training = data_training), new_data = data_training)
+bake(prep(data_rec, 
+          training = data_training),
+     new_data = data_training)
 ```
 
 ### Cross validation
@@ -263,7 +274,8 @@ predictions_logistic  <- bind_cols(
   predict(object = logistic_fit, 
           new_data = data_training),
   predict(object = logistic_fit, 
-          new_data = data_training, type = "prob"))
+          new_data = data_training, 
+          type = "prob"))
 
 # generate confusion matrix
 cm_logistic <- conf_mat(data = predictions_logistic,
@@ -307,8 +319,10 @@ In the LASSO model, the most important variables are (the same as those in the l
 # create a tuning grid for lasso regularization
 lasso_grid <- grid_regular(penalty(), levels = 50)
 
-# create a linear_regression model so that we can tune the penalty parameter
-# set the mixture parameter to 1 and use "glmnet" for the engine
+# create a linear_regression model 
+# so that we can tune the penalty parameter
+# set the mixture parameter to 1 
+# and use "glmnet" for the engine
 lasso_mod <- 
   logistic_reg(penalty = tune(),
                           mixture = 1) %>%
@@ -377,8 +391,12 @@ LASSO model has higher precision in this case.
 
 ```{r compare_LASSO_logistic}
 LASSO_Logistic <- bind_rows(
-  `logistic` = show_best(logistic_cv, metric = "accuracy", n = 1),
-  `LASSO` = show_best(lasso_cv, metric = "accuracy", n = 1),
+  `logistic` = show_best(logistic_cv, 
+                         metric = "accuracy", 
+                         n = 1),
+  `LASSO` = show_best(lasso_cv, 
+                      metric = "accuracy", 
+                      n = 1),
   .id = "model"
 )
 
@@ -542,7 +560,10 @@ In terms of model accuracy and sensitivity, Random Forest model dose the best jo
 Personal income, the work and child total expenses, education attainment, whether the individual had health insurance last year, and the marital status are the most importance variables in predicting individual's labor status. 
 ```{r model_comparison_&_variable_importance_visual, fig.keep='all',fig.width=10, fig.height=10 }
 models <- data.frame(
-  models = c("logistic","LASSO","Decision_Tree","Random_Forest"),
+  models = c("logistic",
+             "LASSO",
+             "Decision_Tree",
+             "Random_Forest"),
   accuracy = c(0.716,0.929,0.922,0.969),
   sensitivity = c(0,0.850,0.879,0.984)
   )
@@ -569,18 +590,21 @@ g2 <- ggplot(data = data_training) +
   scale_x_discrete(name ="Labor Status",
                   labels = c("Not in labor force", 
                               "In labor force")) +
-  labs(title = "Positive effects of work and child care expenses on labor status",
-       x = "labor status",
-       y= "SPM unit's capped work and child care expenses ($ Thousand)", 
-       caption="Data scource: Census.gov") +
+  labs(title = paste0("Positive effects",
+  "of work and child care expenses on labor status"),
+  x = "labor status",
+  y= "SPM unit's capped work and child care expenses ($ Thousand)", 
+  caption="Data scource: Census.gov") +
   theme(plot.title = element_text(size=10))
 
 #A_HGA and in_labor 
 g3 <- ggplot(data = data_training) +
   geom_bar(aes(x = A_HGA, fill = in_labor)) + 
   scale_fill_discrete(name ="labor status",
-                   labels = c("Not in labor force", "In labor force")) +
-  labs(title = "Positive effects of education attainment on labor status",
+                   labels = c("Not in labor force", 
+                              "In labor force")) +
+  labs(title = paste0("Positive effects",
+  "of education attainment on labor status"),
        x = "Education attainment", 
        caption="Data scource: Census.gov") +
   theme(plot.title = element_text(size=10))
@@ -591,9 +615,11 @@ g4 <- ggplot(data = data_training) +
   scale_fill_discrete(name = "Labor Status",
                    labels = c("Not in labor force", 
                               "In labor force")) +
-  labs(title = "Positive effects of health insurance coverage on labor status",
-       x = "Whether the individual had health insurance coverage last year",
-       caption="Data scource: Census.gov") +
+  labs(title = paste0("Positive effects of health",
+  "insurance coverage on labor status"),
+  x = paste0("Whether the individual had",
+  "health insurance coverage last year"),
+  caption="Data scource: Census.gov") +
   theme(plot.title = element_text(size=10))
 
 #A_MARITL and in_labor 
@@ -629,20 +655,22 @@ data1 <- data %>%
 # create PCA
 set.seed(20221111)
 pca_1 <- prcomp(data1, scale = TRUE)
-# create scree plot to decide how many principal components to retain 
+# create scree plot to decide how many pc to retain 
 screeplot(pca_1, type="lines")
 ```
 The scree plot occurs at component 4, which is the “elbow” of the scree plot. Therefore, it cound be argued based on the basis of the scree plot that **the first three components** should be retained.
 
 ## Dimension Reducation with PCA
 ```{r dimension_reduction}
-# create a recipe with no outcome variable and all predictors
+# create a recipe with no outcome variable 
+# and all predictors
 preprocess_rec <- recipe(~ ., data = data1) %>%
   step_zv(all_numeric_predictors()) %>%
   step_nzv(all_numeric_predictors()) %>%
   # center and scale (normalize) all predictors
   step_normalize(all_numeric_predictors())%>%
-  # perform pca and use num_comp = 3 to only keep three components
+  # perform pca and use num_comp = 3 keeping
+  #three components
   step_pca(all_numeric_predictors(),num_comp = 3) %>%
   # run prep to prepare recipe
   prep()
@@ -693,8 +721,9 @@ folds_pca <- vfold_cv(data = data_training_pca, v = 10)
 To reduce standard error in the models, we use standardization and removing variables that have large absolute correlations with other variables in the pre-process.
 ```{r rec_pca}
 #Build a recipe 
-data_rec_pca <- recipe(in_labor~PC1+PC2+PC3+case_wts, 
-                       data = data_training_pca) %>%
+data_rec_pca <- recipe(
+  in_labor~PC1+PC2+PC3+case_wts, 
+  data = data_training_pca) %>%
   # center and scale all predictors
   step_normalize(all_predictors()) %>%
   step_corr(all_predictors())
@@ -745,9 +774,11 @@ predictions_lasso_pca  <- bind_cols(
           new_data = data_training_pca, type = "prob"))
 
 # generate confusion matrix 
-cm_lasso_pca <- conf_mat(data = predictions_lasso_pca,
-               truth = in_labor,
-               estimate = .pred_class)
+cm_lasso_pca <- conf_mat(
+  data = predictions_lasso_pca,
+  truth = in_labor,
+  estimate = .pred_class)
+
 cm_lasso_pca 
 
 accuracy(data = predictions_lasso_pca,
